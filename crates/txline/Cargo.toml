@@ -1,11 +1,17 @@
 [package]
 name = "txline"
-version = "0.0.0"
+version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 description = "Devnet-only Rust SDK for TxLINE."
 license = "MIT OR Apache-2.0"
-publish = false
+repository = "https://github.com/Berektassuly/txline-rs"
+homepage = "https://github.com/Berektassuly/txline-rs"
+documentation = "https://docs.rs/txline"
+readme = "README.md"
+keywords = ["txline", "solana", "devnet", "sdk", "odds"]
+categories = ["api-bindings", "cryptography::cryptocurrencies"]
+publish = true
 
 [lib]
 name = "txline"
@@ -31,19 +37,3 @@ solana-sdk = "4.0.1"
 thiserror = "2.0.18"
 tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread", "time"] }
 url = "2.5.7"
-
-[[example]]
-name = "devnet_free_tier"
-path = "../../examples/devnet_free_tier.rs"
-
-[[example]]
-name = "devnet_scores_stream"
-path = "../../examples/devnet_scores_stream.rs"
-
-[[example]]
-name = "devnet_validate_stat"
-path = "../../examples/devnet_validate_stat.rs"
-
-[[example]]
-name = "devnet_validate_stat_v2"
-path = "../../examples/devnet_validate_stat_v2.rs"
