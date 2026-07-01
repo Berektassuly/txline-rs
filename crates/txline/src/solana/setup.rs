@@ -272,6 +272,19 @@ impl PricingMatrix {
         }
         let admin = Pubkey::new_from_array(reader.read_array::<32>()?);
         let row_count = reader.read_u32()? as usize;
+        const SERVICE_ROW_SIZE: usize = 2 + 8 + 4 + 2 + 2;
+        let remaining = reader.remaining();
+        if !remaining.is_multiple_of(SERVICE_ROW_SIZE) {
+            return Err(TxlineError::solana(
+                "pricing matrix row data length is not aligned to ServiceRow size",
+            ));
+        }
+        let expected_rows = remaining / SERVICE_ROW_SIZE;
+        if row_count != expected_rows {
+            return Err(TxlineError::solana(
+                "pricing matrix row count does not match account data length",
+            ));
+        }
         let mut rows = Vec::with_capacity(row_count);
         for _ in 0..row_count {
             rows.push(ServiceRow {
@@ -335,13 +348,18 @@ mod tests {
     use super::*;
     use solana_sdk::pubkey::Pubkey;
 
-    #[test]
-    fn decodes_pricing_matrix_anchor_account() {
-        let admin = Pubkey::new_unique();
+    fn pricing_matrix_prefix(admin: Pubkey, row_count: u32) -> Vec<u8> {
         let mut data = Vec::new();
         data.extend_from_slice(&PRICING_MATRIX_ACCOUNT_DISCRIMINATOR);
         data.extend_from_slice(admin.as_ref());
-        data.extend_from_slice(&2u32.to_le_bytes());
+        data.extend_from_slice(&row_count.to_le_bytes());
+        data
+    }
+
+    #[test]
+    fn decodes_pricing_matrix_anchor_account() {
+        let admin = Pubkey::new_unique();
+        let mut data = pricing_matrix_prefix(admin, 2);
         data.extend_from_slice(&1u16.to_le_bytes());
         data.extend_from_slice(&100u64.to_le_bytes());
         data.extend_from_slice(&30u32.to_le_bytes());
@@ -367,6 +385,34 @@ mod tests {
         let data = [0u8; 8 + 32 + 4];
         let err = PricingMatrix::decode_anchor_account(&data).unwrap_err();
         assert!(err.to_string().contains("discriminator"));
+    }
+
+    #[test]
+    fn rejects_pricing_matrix_huge_row_count_without_allocating() {
+        let data = pricing_matrix_prefix(Pubkey::new_unique(), u32::MAX);
+
+        let err = PricingMatrix::decode_anchor_account(&data).unwrap_err();
+
+        assert!(err.to_string().contains("row count"));
+    }
+
+    #[test]
+    fn rejects_pricing_matrix_row_count_that_exceeds_row_bytes() {
+        let data = pricing_matrix_prefix(Pubkey::new_unique(), 1);
+
+        let err = PricingMatrix::decode_anchor_account(&data).unwrap_err();
+
+        assert!(err.to_string().contains("row count"));
+    }
+
+    #[test]
+    fn rejects_pricing_matrix_unaligned_row_bytes() {
+        let mut data = pricing_matrix_prefix(Pubkey::new_unique(), 0);
+        data.push(0);
+
+        let err = PricingMatrix::decode_anchor_account(&data).unwrap_err();
+
+        assert!(err.to_string().contains("not aligned"));
     }
 
     #[test]
