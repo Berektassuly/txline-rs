@@ -92,8 +92,13 @@ impl ScoresStatValidationV2 {
         &self.response
     }
 
+    /// Timestamp used by `validateStatV2` and the `daily_scores_roots` PDA.
+    pub fn target_ts(&self) -> i64 {
+        self.response.summary.update_stats.min_timestamp
+    }
+
     pub fn epoch_day(&self) -> Result<u16> {
-        timestamp_ms_to_epoch_day(self.response.summary.update_stats.min_timestamp)
+        timestamp_ms_to_epoch_day(self.target_ts())
     }
 
     pub fn to_validation_input(&self) -> StatValidationInput {
@@ -107,7 +112,7 @@ impl ScoresStatValidationV2 {
             .collect();
 
         StatValidationInput {
-            ts: self.response.ts,
+            ts: self.target_ts(),
             fixture_summary: FixtureSummaryInput {
                 fixture_id: i64::from(self.response.summary.fixture_id),
                 update_count: self.response.summary.update_stats.update_count,

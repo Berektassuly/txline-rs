@@ -36,6 +36,38 @@ fn v2_rejects_length_mismatch() {
 }
 
 #[test]
+fn v2_validation_input_ts_uses_summary_min_timestamp() {
+    let response_ts = 1_781_200_000_000;
+    let min_timestamp = 1_781_123_456_789;
+    let validation = ScoresStatValidationV2::from_response(
+        vec![1001, 1002],
+        response_with_timestamps(2, response_ts, min_timestamp),
+    )
+    .unwrap();
+
+    assert_ne!(
+        validation.response().ts,
+        validation.response().summary.update_stats.min_timestamp
+    );
+    assert_eq!(validation.target_ts(), min_timestamp);
+    assert_eq!(validation.to_validation_input().ts, min_timestamp);
+}
+
+#[test]
+fn v2_epoch_day_and_validation_input_ts_use_same_timestamp() {
+    let min_timestamp = 20_624_i64 * 86_400_000 + 12_345;
+    let response_ts = min_timestamp + 86_400_000;
+    let validation = ScoresStatValidationV2::from_response(
+        vec![1001],
+        response_with_timestamps(1, response_ts, min_timestamp),
+    )
+    .unwrap();
+
+    let input_epoch_day = (validation.to_validation_input().ts / 86_400_000) as u16;
+    assert_eq!(validation.epoch_day().unwrap(), input_epoch_day);
+}
+
+#[test]
 fn strategy_builder_rejects_out_of_bounds_indices() {
     let predicate = TraderPredicate::new(0, Comparison::equal_to());
     let err = NDimensionalStrategy::builder(2)
@@ -56,9 +88,17 @@ fn client_activation_preimage_uses_stored_jwt() {
 }
 
 fn response_with(count: usize) -> ScoresStatValidationV2Response {
+    response_with_timestamps(count, 1, 1)
+}
+
+fn response_with_timestamps(
+    count: usize,
+    response_ts: i64,
+    min_timestamp: i64,
+) -> ScoresStatValidationV2Response {
     let hash = Hash32::from_bytes([9u8; 32]).unwrap();
     ScoresStatValidationV2Response {
-        ts: 1,
+        ts: response_ts,
         stats_to_prove: (0..count)
             .map(|idx| ScoreStat {
                 key: (idx + 1) as u32,
@@ -71,8 +111,8 @@ fn response_with(count: usize) -> ScoresStatValidationV2Response {
             fixture_id: 1,
             update_stats: UpdateStats {
                 update_count: 1,
-                min_timestamp: 1,
-                max_timestamp: 1,
+                min_timestamp,
+                max_timestamp: response_ts.max(min_timestamp),
             },
             event_stats_sub_tree_root: hash,
         },
