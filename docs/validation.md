@@ -82,6 +82,14 @@ cargo run -p txline --example devnet_validate_odds
 Default tests cover deterministic instruction encoding and payload behavior, but
 do not require live Devnet availability.
 
+Checked-in Anchor golden fixtures live in
+`crates/txline/tests/fixtures/validation_golden.devnet.json` and are read by the
+Rust tests with `include_str!`. Normal Rust tests do not require Node, Anchor, or
+a local `txodds/tx-on-chain` checkout. Those tools are only needed to regenerate
+or independently verify the golden file, using the fixture README workflow and
+the PR #3 Devnet IDL pinned to commit
+`8dfc6608252f4034a0279b48578c8fe07b949af0`.
+
 ## Sequence Source
 
 `seq` must come from a real score record from snapshot, updates, historical

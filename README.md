@@ -177,6 +177,10 @@ cargo test
 ```
 
 Normal tests are offline and do not require live TxLINE Devnet credentials.
+Validation instruction tests use checked-in Anchor golden fixtures, so they also
+do not require Node, Anchor, or a local `txodds/tx-on-chain` checkout. See
+[`crates/txline/tests/fixtures/README.md`](crates/txline/tests/fixtures/README.md)
+for the developer-only verification and regeneration workflow.
 
 CI runs the same checks on pushes to `main` and pull requests, plus an MSRV
 `cargo check` using the workspace `rust-version`.
@@ -189,4 +193,4 @@ CI runs the same checks on pushes to `main` and pull requests, plus an MSRV
 - Streaming docs: <https://txline.txodds.com/documentation/examples/streaming-data>
 - On-chain validation docs: <https://txline.txodds.com/documentation/examples/onchain-validation>
 - Devnet IDL docs: <https://github.com/txodds/tx-on-chain/blob/main/documentation/programs/devnet.mdx>
-- Devnet examples branch: <https://github.com/txodds/tx-on-chain/tree/nojira-re-adding-examples>
+- Devnet PR examples source: <https://github.com/txodds/tx-on-chain/tree/nojira-re-adding-examples>

@@ -1,10 +1,25 @@
-use txline::http::models::UpdateStats;
-use txline::validation::legacy::{ScoreStat, ScoresBatchSummary};
+use serde::Deserialize;
+use solana_sdk::instruction::AccountMeta;
+use solana_sdk::pubkey::Pubkey;
+use txline::http::models::{
+    BatchMetadata, Fixture, FixtureBatchSummary, FixtureBatchValidation, FixtureValidation,
+    OddsBatchSummary, OddsPayload, OddsValidation, UpdateStats,
+};
+use txline::solana::validation::{
+    validate_fixture_batch_instruction, validate_fixture_instruction, validate_odds_instruction,
+    validate_stat_instruction, validate_stat_v2_instruction,
+};
+use txline::validation::legacy::{
+    FixtureSummaryInput, ScoreStat, ScoresBatchSummary, ScoresStatValidation,
+};
 use txline::validation::proof::Hash32;
 use txline::validation::strategy::{
-    BinaryExpression, Comparison, NDimensionalStrategy, TraderPredicate,
+    BinaryExpression, Comparison, GeometricTarget, NDimensionalStrategy, StatPredicate,
+    TraderPredicate,
 };
-use txline::validation::v2::{ScoresStatValidationV2, ScoresStatValidationV2Response};
+use txline::validation::v2::{
+    ScoresStatValidationV2, ScoresStatValidationV2Response, StatLeafInput, StatValidationInput,
+};
 use txline::{ApiToken, GuestJwt, TxlineClient, TxlineConfig};
 
 #[tokio::test]
@@ -152,6 +167,94 @@ fn client_activation_preimage_uses_stored_jwt() {
     );
 }
 
+#[test]
+fn validation_instruction_bytes_match_devnet_anchor_golden_fixtures() {
+    let program_id = program_id();
+    let root = root_account();
+
+    let stat_ix = validate_stat_instruction(
+        program_id,
+        root,
+        &score_validation(),
+        TraderPredicate::new(1, Comparison::less_than()),
+        Some(BinaryExpression::add()),
+    )
+    .unwrap();
+    assert_eq!(
+        stat_ix.accounts,
+        vec![AccountMeta::new_readonly(root, false)]
+    );
+    assert_eq!(stat_ix.data, golden_data("validate_stat"));
+
+    let stat_v2_ix =
+        validate_stat_v2_instruction(program_id, root, &stat_v2_payload(), &v2_strategy()).unwrap();
+    assert_eq!(
+        stat_v2_ix.accounts,
+        vec![AccountMeta::new_readonly(root, false)]
+    );
+    assert_eq!(stat_v2_ix.data, golden_data("validate_stat_v2"));
+
+    let fixture_ix = validate_fixture_instruction(program_id, root, &fixture_validation()).unwrap();
+    assert_eq!(
+        fixture_ix.accounts,
+        vec![AccountMeta::new_readonly(root, false)]
+    );
+    assert_eq!(fixture_ix.data, golden_data("validate_fixture"));
+
+    let fixture_batch_ix =
+        validate_fixture_batch_instruction(program_id, root, 3, &fixture_batch_validation())
+            .unwrap();
+    assert_eq!(
+        fixture_batch_ix.accounts,
+        vec![AccountMeta::new_readonly(root, false)]
+    );
+    assert_eq!(fixture_batch_ix.data, golden_data("validate_fixture_batch"));
+
+    let odds_ix = validate_odds_instruction(program_id, root, &odds_validation()).unwrap();
+    assert_eq!(
+        odds_ix.accounts,
+        vec![AccountMeta::new_readonly(root, false)]
+    );
+    assert_eq!(odds_ix.data, golden_data("validate_odds"));
+}
+
+#[test]
+fn score_validation_keeps_signed_update_count_valid() {
+    let validation = score_validation();
+    assert!(validation.summary.update_stats.update_count < 0);
+
+    let ix = validate_stat_instruction(
+        program_id(),
+        root_account(),
+        &validation,
+        TraderPredicate::new(1, Comparison::less_than()),
+        Some(BinaryExpression::add()),
+    )
+    .unwrap();
+
+    assert_eq!(ix.data, golden_data("validate_stat"));
+}
+
+#[test]
+fn fixture_validation_rejects_negative_update_count() {
+    let mut validation = fixture_validation();
+    validation.summary.update_stats.update_count = -1;
+
+    let err = validate_fixture_instruction(program_id(), root_account(), &validation).unwrap_err();
+
+    assert!(err.to_string().contains("nonnegative"));
+}
+
+#[test]
+fn odds_validation_rejects_negative_update_count() {
+    let mut validation = odds_validation();
+    validation.summary.update_stats.update_count = -1;
+
+    let err = validate_odds_instruction(program_id(), root_account(), &validation).unwrap_err();
+
+    assert!(err.to_string().contains("nonnegative"));
+}
+
 fn response_with(count: usize) -> ScoresStatValidationV2Response {
     response_with_timestamps(count, 1, 1)
 }
@@ -191,4 +294,231 @@ fn response_with_timestamps(
         sub_tree_proof: Vec::new(),
         main_tree_proof: Vec::new(),
     }
+}
+
+fn program_id() -> Pubkey {
+    Pubkey::new_from_array([200; 32])
+}
+
+fn root_account() -> Pubkey {
+    Pubkey::new_from_array([201; 32])
+}
+
+fn score_validation() -> ScoresStatValidation {
+    let event_stat_root = hash(20);
+    ScoresStatValidation {
+        ts: 1_781_123_456_789,
+        stat_to_prove: ScoreStat {
+            key: 1001,
+            value: 2,
+            period: 0,
+        },
+        event_stat_root,
+        summary: ScoresBatchSummary {
+            fixture_id: i64::from(i32::MAX) + 6,
+            update_stats: UpdateStats {
+                update_count: -3,
+                min_timestamp: 1_781_123_456_789,
+                max_timestamp: 1_781_123_456_799,
+            },
+            event_stats_sub_tree_root: hash(10),
+        },
+        stat_proof: vec![proof(30, true)],
+        sub_tree_proof: vec![proof(50, false)],
+        main_tree_proof: vec![proof(60, true)],
+        stat_to_prove2: Some(ScoreStat {
+            key: 1002,
+            value: -1,
+            period: 1,
+        }),
+        stat_proof2: Some(vec![proof(40, false)]),
+    }
+}
+
+fn stat_v2_payload() -> StatValidationInput {
+    StatValidationInput {
+        ts: 1_781_123_456_789,
+        fixture_summary: FixtureSummaryInput {
+            fixture_id: i64::from(i32::MAX) + 6,
+            update_count: -3,
+            min_timestamp: 1_781_123_456_789,
+            max_timestamp: 1_781_123_456_799,
+            events_sub_tree_root: hash_bytes(10),
+        },
+        fixture_proof: vec![proof(51, false)],
+        main_tree_proof: vec![proof(61, true)],
+        event_stat_root: hash_bytes(22),
+        stats: vec![
+            StatLeafInput {
+                stat: ScoreStat {
+                    key: 1001,
+                    value: 2,
+                    period: 0,
+                },
+                stat_proof: vec![proof(31, true)],
+            },
+            StatLeafInput {
+                stat: ScoreStat {
+                    key: 1002,
+                    value: -1,
+                    period: 1,
+                },
+                stat_proof: vec![proof(41, false)],
+            },
+        ],
+    }
+}
+
+fn v2_strategy() -> NDimensionalStrategy {
+    NDimensionalStrategy {
+        geometric_targets: vec![
+            GeometricTarget {
+                stat_index: 0,
+                prediction: 0,
+            },
+            GeometricTarget {
+                stat_index: 1,
+                prediction: 1,
+            },
+        ],
+        distance_predicate: Some(TraderPredicate::new(2, Comparison::less_than())),
+        discrete_predicates: vec![
+            StatPredicate::Single {
+                index: 0,
+                predicate: TraderPredicate::new(1, Comparison::equal_to()),
+            },
+            StatPredicate::Binary {
+                index_a: 0,
+                index_b: 1,
+                op: BinaryExpression::subtract(),
+                predicate: TraderPredicate::new(0, Comparison::greater_than()),
+            },
+        ],
+    }
+}
+
+fn fixture_validation() -> FixtureValidation {
+    FixtureValidation {
+        snapshot: Fixture {
+            ts: 1_781_123_000_000,
+            start_time: 1_781_126_600_000,
+            competition: "Devnet Cup".to_owned(),
+            competition_id: 7,
+            fixture_group_id: -8,
+            participant1_id: 101,
+            participant1: "Alpha".to_owned(),
+            participant2_id: 202,
+            participant2: "Beta".to_owned(),
+            fixture_id: i64::from(i32::MAX) + 7,
+            participant1_is_home: true,
+            extra: Default::default(),
+        },
+        summary: FixtureBatchSummary {
+            fixture_id: i64::from(i32::MAX) + 7,
+            competition_id: 7,
+            competition: "Devnet Cup".to_owned(),
+            update_stats: UpdateStats {
+                update_count: 4,
+                min_timestamp: 1_781_123_000_000,
+                max_timestamp: 1_781_123_000_001,
+            },
+            update_sub_tree_root: hash(70),
+        },
+        sub_tree_proof: vec![proof(71, false)],
+        main_tree_proof: vec![proof(72, true)],
+    }
+}
+
+fn fixture_batch_validation() -> FixtureBatchValidation {
+    FixtureBatchValidation {
+        metadata: BatchMetadata {
+            total_update_count: 5,
+            num_unique_fixtures: 2,
+            overall_batch_start_ts: 1_781_123_000_000,
+            overall_batch_end_ts: 1_781_123_900_000,
+        },
+        proof: vec![proof(80, false), proof(81, true)],
+    }
+}
+
+fn odds_validation() -> OddsValidation {
+    OddsValidation {
+        odds: OddsPayload {
+            fixture_id: i64::from(i32::MAX) + 8,
+            message_id: "msg-1".to_owned(),
+            ts: 1_781_123_456_789,
+            bookmaker: "Book".to_owned(),
+            bookmaker_id: 9,
+            super_odds_type: "Winner".to_owned(),
+            game_state: Some("PreMatch".to_owned()),
+            in_running: false,
+            market_parameters: None,
+            market_period: Some("FT".to_owned()),
+            price_names: vec!["Home".to_owned(), "Away".to_owned()],
+            prices: vec![120, -125],
+            pct: Vec::new(),
+            extra: Default::default(),
+        },
+        summary: OddsBatchSummary {
+            fixture_id: i64::from(i32::MAX) + 8,
+            update_stats: UpdateStats {
+                update_count: 5,
+                min_timestamp: 1_781_123_450_000,
+                max_timestamp: 1_781_123_459_999,
+            },
+            odds_sub_tree_root: hash(90),
+        },
+        sub_tree_proof: vec![proof(91, false)],
+        main_tree_proof: vec![proof(92, true)],
+    }
+}
+
+fn proof(base: u8, is_right_sibling: bool) -> txline::validation::proof::ProofNode {
+    txline::validation::proof::ProofNode {
+        hash: hash(base),
+        is_right_sibling,
+    }
+}
+
+fn hash(base: u8) -> Hash32 {
+    Hash32::from_bytes(hash_bytes(base)).unwrap()
+}
+
+fn hash_bytes(base: u8) -> [u8; 32] {
+    let mut bytes = [0; 32];
+    for (index, byte) in bytes.iter_mut().enumerate() {
+        *byte = base.wrapping_add(index as u8);
+    }
+    bytes
+}
+
+fn golden_data(name: &str) -> Vec<u8> {
+    let golden: GoldenFile =
+        serde_json::from_str(include_str!("fixtures/validation_golden.devnet.json")).unwrap();
+    let fixture = golden
+        .fixtures
+        .iter()
+        .find(|fixture| fixture.name == name)
+        .unwrap_or_else(|| panic!("missing golden fixture {name}"));
+    decode_hex(&fixture.data_hex)
+}
+
+fn decode_hex(value: &str) -> Vec<u8> {
+    assert!(value.len().is_multiple_of(2));
+    (0..value.len())
+        .step_by(2)
+        .map(|offset| u8::from_str_radix(&value[offset..offset + 2], 16).unwrap())
+        .collect()
+}
+
+#[derive(Debug, Deserialize)]
+struct GoldenFile {
+    fixtures: Vec<GoldenFixture>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GoldenFixture {
+    name: String,
+    data_hex: String,
 }

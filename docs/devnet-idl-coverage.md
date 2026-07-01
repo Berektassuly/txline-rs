@@ -8,8 +8,10 @@ This SDK is Devnet-only. Devnet IDL data comes from upstream
 Current upstream Devnet docs list program
 `6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J` version `1.5.2`. The upstream
 PR examples branch `nojira-re-adding-examples` includes a Devnet IDL copy at
-the same program ID with version `1.5.5` and `validate_stat_v2`. This SDK
-implements the PR parity surface and documents the remaining gaps honestly.
+`examples/devnet/idl/txoracle.json` with the same program ID, version `1.5.5`,
+and `validate_stat_v2`. This SDK implements the PR parity surface pinned to
+commit `8dfc6608252f4034a0279b48578c8fe07b949af0` and documents the remaining
+gaps honestly.
 
 The machine-readable source is `txline::solana::idl::DEVNET_INSTRUCTION_COVERAGE`.
 

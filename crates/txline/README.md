@@ -68,7 +68,11 @@ ${txSig}::${jwt}
 - Repository: <https://github.com/Berektassuly/txline-rs>
 - API docs: <https://docs.rs/txline>
 - TxLINE docs: <https://txline.txodds.com/documentation/quickstart>
-- Devnet IDL source: <https://github.com/txodds/tx-on-chain/blob/main/documentation/programs/devnet.mdx>
+- Devnet IDL docs: <https://github.com/txodds/tx-on-chain/blob/main/documentation/programs/devnet.mdx>
+- Devnet PR examples source: <https://github.com/txodds/tx-on-chain/tree/nojira-re-adding-examples>
+
+Normal Rust tests use checked-in validation golden fixtures and do not require
+Node, Anchor, or a local `txodds/tx-on-chain` checkout.
 
 ## License
 

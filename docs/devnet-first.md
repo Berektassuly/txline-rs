@@ -12,9 +12,10 @@ at mainnet address `9ExbZjAapQww1vfcisDmrngPinHTEfpjYRWMunJgcKaA` and version
 The Devnet docs currently identify program
 `6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J` and IDL version `1.5.2`. The
 upstream PR examples branch `nojira-re-adding-examples` includes a Devnet IDL
-copy at the same program ID with version `1.5.5` and the additional
-`validate_stat_v2` instruction. This SDK implements the PR parity surface while
-remaining Devnet-only.
+copy at `examples/devnet/idl/txoracle.json` with the same program ID, version
+`1.5.5`, and the additional `validate_stat_v2` instruction. This SDK implements
+the PR parity surface pinned to commit
+`8dfc6608252f4034a0279b48578c8fe07b949af0` while remaining Devnet-only.
 
 ## Canonical Values
 

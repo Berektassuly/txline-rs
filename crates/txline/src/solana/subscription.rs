@@ -1,5 +1,6 @@
 //! Devnet subscription transaction helpers.
 
+use solana_client::nonblocking::rpc_client::RpcClient as AsyncRpcClient;
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::hash::Hash;
 use solana_sdk::instruction::{AccountMeta, Instruction};
@@ -137,4 +138,17 @@ pub fn send_subscribe_transaction<S: Signer>(
     let transaction =
         sign_subscribe_transaction(config, signer, service_level_id, weeks, blockhash)?;
     Ok(rpc.send_and_confirm_transaction(&transaction)?)
+}
+
+pub async fn send_subscribe_transaction_async<S: Signer>(
+    config: &TxlineConfig,
+    signer: &S,
+    service_level_id: u16,
+    weeks: u8,
+) -> Result<Signature> {
+    let rpc = AsyncRpcClient::new(config.rpc_url.clone());
+    let blockhash = rpc.get_latest_blockhash().await?;
+    let transaction =
+        sign_subscribe_transaction(config, signer, service_level_id, weeks, blockhash)?;
+    Ok(rpc.send_and_confirm_transaction(&transaction).await?)
 }

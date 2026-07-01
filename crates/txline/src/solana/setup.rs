@@ -1,11 +1,11 @@
 //! High-level Devnet user setup flow.
 
 use std::path::Path;
-use std::thread::sleep;
 use std::time::Duration;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
+use solana_client::nonblocking::rpc_client::RpcClient as AsyncRpcClient;
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::instruction::{AccountMeta, Instruction};
 use solana_sdk::pubkey::Pubkey;
@@ -15,7 +15,7 @@ use solana_sdk::transaction::Transaction;
 use super::pda::{
     ASSOCIATED_TOKEN_PROGRAM_ID, DevnetPdas, SYSTEM_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, parse_pubkey,
 };
-use super::subscription::send_subscribe_transaction;
+use super::subscription::send_subscribe_transaction_async;
 use crate::{ApiToken, GuestJwt, Result, TxlineClient, TxlineConfig, TxlineError};
 
 pub const PRICING_MATRIX_ACCOUNT_DISCRIMINATOR: [u8; 8] = [173, 13, 64, 22, 248, 77, 110, 106];
@@ -125,7 +125,7 @@ impl<'a> DevnetUserSetup<'a> {
             self.client.set_api_token(token);
         }
 
-        let pricing_matrix = fetch_devnet_pricing_matrix(self.client.config())?;
+        let pricing_matrix = fetch_devnet_pricing_matrix_async(self.client.config()).await?;
         let pdas = DevnetPdas::new()?;
         let user_pubkey = signer.pubkey();
         let user_txl_ata = pdas.user_txl_ata(&user_pubkey)?.address;
@@ -146,21 +146,23 @@ impl<'a> DevnetUserSetup<'a> {
             });
         }
 
-        ensure_user_token_2022_ata(
+        ensure_user_token_2022_ata_async(
             self.client.config(),
             signer,
             &user_pubkey,
             &pdas.txl_mint,
             self.ata_visibility_attempts,
             self.ata_visibility_delay,
-        )?;
+        )
+        .await?;
 
-        let subscribe_signature = send_subscribe_transaction(
+        let subscribe_signature = send_subscribe_transaction_async(
             self.client.config(),
             signer,
             self.service_level_id,
             self.weeks,
-        )?;
+        )
+        .await?;
 
         let preimage = self
             .client
@@ -198,6 +200,13 @@ pub fn fetch_devnet_pricing_matrix(config: &TxlineConfig) -> Result<PricingMatri
     PricingMatrix::decode_anchor_account(&data)
 }
 
+pub async fn fetch_devnet_pricing_matrix_async(config: &TxlineConfig) -> Result<PricingMatrix> {
+    let rpc = AsyncRpcClient::new(config.rpc_url.clone());
+    let pdas = DevnetPdas::new()?;
+    let data = rpc.get_account_data(&pdas.pricing_matrix().address).await?;
+    PricingMatrix::decode_anchor_account(&data)
+}
+
 pub fn ensure_user_token_2022_ata<S: Signer>(
     config: &TxlineConfig,
     payer: &S,
@@ -219,6 +228,30 @@ pub fn ensure_user_token_2022_ata<S: Signer>(
     transaction.sign(&[payer], blockhash);
     rpc.send_and_confirm_transaction(&transaction)?;
     wait_for_account_visibility(&rpc, &ata, visibility_attempts, visibility_delay)?;
+    Ok(ata)
+}
+
+pub async fn ensure_user_token_2022_ata_async<S: Signer>(
+    config: &TxlineConfig,
+    payer: &S,
+    owner: &Pubkey,
+    mint: &Pubkey,
+    visibility_attempts: usize,
+    visibility_delay: Duration,
+) -> Result<Pubkey> {
+    let rpc = AsyncRpcClient::new(config.rpc_url.clone());
+    let ata = crate::solana::pda::token_2022_associated_token_address(owner, mint)?.address;
+    if rpc.get_account(&ata).await.is_ok() {
+        return Ok(ata);
+    }
+
+    let blockhash = rpc.get_latest_blockhash().await?;
+    let instruction =
+        create_token_2022_associated_token_account_instruction(&payer.pubkey(), &ata, owner, mint)?;
+    let mut transaction = Transaction::new_with_payer(&[instruction], Some(&payer.pubkey()));
+    transaction.sign(&[payer], blockhash);
+    rpc.send_and_confirm_transaction(&transaction).await?;
+    wait_for_account_visibility_async(&rpc, &ata, visibility_attempts, visibility_delay).await?;
     Ok(ata)
 }
 
@@ -253,7 +286,26 @@ fn wait_for_account_visibility(
             return Ok(());
         }
         if attempt + 1 < attempts {
-            sleep(delay);
+            std::thread::sleep(delay);
+        }
+    }
+    Err(TxlineError::solana(format!(
+        "token account {account} was not visible after {attempts} RPC attempts"
+    )))
+}
+
+async fn wait_for_account_visibility_async(
+    rpc: &AsyncRpcClient,
+    account: &Pubkey,
+    attempts: usize,
+    delay: Duration,
+) -> Result<()> {
+    for attempt in 0..attempts {
+        if rpc.get_account(account).await.is_ok() {
+            return Ok(());
+        }
+        if attempt + 1 < attempts {
+            tokio::time::sleep(delay).await;
         }
     }
     Err(TxlineError::solana(format!(
