@@ -5,6 +5,7 @@ Devnet-only Rust SDK for TxLINE.
 [Architecture](docs/architecture.md) |
 [Devnet model](docs/devnet-first.md) |
 [Validation](docs/validation.md) |
+[Devnet IDL coverage](docs/devnet-idl-coverage.md) |
 [Security](SECURITY.md) |
 [Contributing](CONTRIBUTING.md)
 
@@ -25,12 +26,19 @@ The crate currently includes:
 - Guest JWT acquisition and activated API token storage.
 - REST clients for fixtures, odds, scores, validation, and purchase quotes.
 - SSE odds and scores streams with reconnect support, `Last-Event-ID`, and
-  heartbeat filtering.
+  heartbeat filtering. SSE setup refreshes guest JWTs on `401` and `403`.
 - Legacy and V2 score stat-validation DTOs and conversion helpers.
 - Proof hash decoding from base64, hex, and byte arrays.
 - V2 strategy builders for single, binary, geometric, and distance predicates.
-- Devnet PDA helpers and Token-2022 associated token account derivation.
-- Anchor-compatible `subscribe(service_level_id, weeks)` transaction helpers.
+- Devnet PDA helpers and Token-2022 associated token account derivation and
+  creation.
+- Anchor-compatible `subscribe(service_level_id, weeks)`,
+  `request_devnet_faucet`, `purchase_subscription_token_usdt`, and validation
+  instruction helpers.
+- A high-level Devnet setup flow analogous to the upstream TypeScript
+  `setupUser` helper.
+- Pricing matrix account decoding and paid quote transaction safety checks.
+- A machine-readable Devnet IDL instruction coverage manifest.
 
 ## Quick Start
 
@@ -51,6 +59,24 @@ client.set_api_token(ApiToken::new("activated-api-token")?);
 
 let fixtures = client.fixtures().snapshot(None, None).await?;
 println!("fixtures: {}", fixtures.len());
+# Ok(())
+# }
+```
+
+For the full Devnet setup flow:
+
+```rust,no_run
+use txline::{TxlineClient, TxlineConfig};
+
+# async fn run() -> txline::Result<()> {
+let client = TxlineClient::new(TxlineConfig::devnet())?;
+let setup = client
+    .devnet_user_setup()
+    .service_level_id(1)
+    .weeks(4)
+    .selected_leagues(Vec::<i32>::new());
+let result = setup.run_with_keypair_path("path/to/devnet-wallet.json").await?;
+println!("wallet: {}", result.user_pubkey);
 # Ok(())
 # }
 ```
@@ -94,14 +120,19 @@ callers are still responsible for providing a real Devnet RPC endpoint.
 
 ## Examples
 
-Examples require caller-provided Devnet credentials. They do not contain real
-tokens, signatures, seed phrases, or private keys.
+Examples require caller-provided Devnet credentials or an explicit Devnet wallet
+path. They do not contain real tokens, signatures, seed phrases, or private
+keys. Live on-chain simulations are gated behind environment variables and are
+not run by default tests.
 
 ```bash
 cargo run -p txline --example devnet_free_tier
+cargo run -p txline --example devnet_setup_user
 cargo run -p txline --example devnet_scores_stream
 cargo run -p txline --example devnet_validate_stat
 cargo run -p txline --example devnet_validate_stat_v2
+cargo run -p txline --example devnet_validate_fixture
+cargo run -p txline --example devnet_validate_odds
 ```
 
 Common environment variables:
@@ -113,6 +144,8 @@ TXLINE_FIXTURE_ID=17952170
 TXLINE_SCORE_SEQ=941
 TXLINE_STAT_KEY=1002
 TXLINE_STAT_KEYS=1001,1002,1007,2007
+TXLINE_WALLET=/path/to/devnet-wallet.json
+TXLINE_VALIDATE_ON_CHAIN=1
 ```
 
 `TXLINE_SCORE_SEQ` must come from a real score record observed through a
@@ -125,6 +158,8 @@ snapshot, update endpoint, historical score query, or the scores stream.
 - [Devnet model](docs/devnet-first.md): fixed constants, RPC guardrails, and
   intentional non-goals.
 - [Validation](docs/validation.md): legacy and V2 score stat-validation payloads.
+- [Devnet IDL coverage](docs/devnet-idl-coverage.md): implemented, planned,
+  admin-only, and intentionally unsupported instructions.
 - [Security](docs/security.md): secrets, wallet signatures, purchase quotes, and
   stream behavior.
 - [Security policy](SECURITY.md): how to report vulnerabilities.
@@ -153,4 +188,5 @@ CI runs the same checks on pushes to `main` and pull requests, plus an MSRV
 - Program addresses: <https://txline.txodds.com/documentation/programs/addresses>
 - Streaming docs: <https://txline.txodds.com/documentation/examples/streaming-data>
 - On-chain validation docs: <https://txline.txodds.com/documentation/examples/onchain-validation>
+- Devnet IDL docs: <https://github.com/txodds/tx-on-chain/blob/main/documentation/programs/devnet.mdx>
 - Devnet examples branch: <https://github.com/txodds/tx-on-chain/tree/nojira-re-adding-examples>

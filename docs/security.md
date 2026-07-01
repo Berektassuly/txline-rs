@@ -43,25 +43,36 @@ your application.
 ## Purchase Quotes
 
 The SDK can request a Devnet purchase quote, decode the returned transaction
-bytes, and check the financial shape. It does not yet perform a full decoded
-transaction audit.
+bytes, check the financial shape, and audit the transaction before the caller
+signs it.
 
-Before signing paid quote transactions, inspect:
+The safety checker verifies:
 
 - fee payer,
-- signer set,
-- backend or admin signature,
-- invoked program IDs,
-- account metas,
-- decoded TxLINE instruction,
-- requested TxL amount.
+- expected backend signer when configured,
+- invoked program IDs against the TxLINE purchase allowlist,
+- exactly one TxLINE `purchase_subscription_token_usdt` instruction,
+- instruction discriminator and requested TxL amount,
+- Devnet mint, treasury, ATA, token program, system program, and associated
+  token account metas,
+- unexpected buyer signer usage.
+
+Transactions that use address table lookups are rejected because dynamically
+loaded accounts cannot be audited from the quote payload alone.
 
 ## Streams
 
 SSE clients send both credentials, preserve `Last-Event-ID`, and renew the guest
-JWT on HTTP 401. Heartbeat events are filtered before typed JSON
-deserialization. HTTP 403 is treated as an entitlement, token, expiry, or network
-mismatch condition.
+JWT on stream connection HTTP 401 and 403. Heartbeat events are filtered before
+typed JSON deserialization.
+
+REST requests refresh only on HTTP 401. REST 403 can mean entitlement failure,
+an inactive API token, or a network mismatch, so the SDK does not silently
+reinterpret it as an expired guest JWT.
+
+Cloned `TxlineClient` values share token state and a refresh lock so concurrent
+requests coalesce guest JWT refreshes. Separate users should use separate
+`TxlineClient` instances.
 
 ## Live Credentials
 

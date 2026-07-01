@@ -72,7 +72,7 @@ pub struct OddsPayload {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Scores {
-    pub fixture_id: i32,
+    pub fixture_id: i64,
     pub game_state: String,
     pub start_time: i64,
     pub is_team: bool,

@@ -64,6 +64,19 @@ fn v2_validation_input_ts_uses_summary_min_timestamp() {
 }
 
 #[test]
+fn v2_validation_input_preserves_i64_fixture_id() {
+    let fixture_id = i64::from(i32::MAX) + 10;
+    let validation =
+        ScoresStatValidationV2::from_response(vec![1001], response_with_fixture_id(1, fixture_id))
+            .unwrap();
+
+    assert_eq!(
+        validation.to_validation_input().fixture_summary.fixture_id,
+        fixture_id
+    );
+}
+
+#[test]
 fn v2_epoch_day_and_validation_input_ts_use_same_timestamp() {
     let min_timestamp = 20_624_i64 * 86_400_000 + 12_345;
     let response_ts = min_timestamp + 86_400_000;
@@ -87,6 +100,48 @@ fn strategy_builder_rejects_out_of_bounds_indices() {
 }
 
 #[test]
+fn strategy_builder_covers_single_binary_geometric_and_multi_leg_shapes() {
+    let eq = TraderPredicate::new(0, Comparison::equal_to());
+    let gt = TraderPredicate::new(1, Comparison::greater_than());
+    let lt = TraderPredicate::new(2, Comparison::less_than());
+
+    let two_leg = NDimensionalStrategy::builder(2)
+        .single(0, gt)
+        .unwrap()
+        .binary(0, 1, BinaryExpression::subtract(), eq)
+        .unwrap()
+        .geometric_target(0, 0)
+        .unwrap()
+        .geometric_target(1, 1)
+        .unwrap()
+        .distance_predicate(lt)
+        .build()
+        .unwrap();
+    assert_eq!(two_leg.discrete_predicates.len(), 2);
+    assert_eq!(two_leg.geometric_targets.len(), 2);
+
+    let three_leg = NDimensionalStrategy::builder(3)
+        .binary(0, 1, BinaryExpression::subtract(), eq)
+        .unwrap()
+        .single(2, gt)
+        .unwrap()
+        .build()
+        .unwrap();
+    assert_eq!(three_leg.discrete_predicates.len(), 2);
+
+    let four_leg = NDimensionalStrategy::builder(4)
+        .binary(0, 1, BinaryExpression::subtract(), gt)
+        .unwrap()
+        .single(2, eq)
+        .unwrap()
+        .single(3, lt)
+        .unwrap()
+        .build()
+        .unwrap();
+    assert_eq!(four_leg.discrete_predicates.len(), 3);
+}
+
+#[test]
 fn client_activation_preimage_uses_stored_jwt() {
     let client = TxlineClient::new(TxlineConfig::devnet()).unwrap();
     client.set_guest_jwt(GuestJwt::new("jwt").unwrap());
@@ -99,6 +154,12 @@ fn client_activation_preimage_uses_stored_jwt() {
 
 fn response_with(count: usize) -> ScoresStatValidationV2Response {
     response_with_timestamps(count, 1, 1)
+}
+
+fn response_with_fixture_id(count: usize, fixture_id: i64) -> ScoresStatValidationV2Response {
+    let mut response = response_with_timestamps(count, 1, 1);
+    response.summary.fixture_id = fixture_id;
+    response
 }
 
 fn response_with_timestamps(

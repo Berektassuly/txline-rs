@@ -16,7 +16,14 @@ Solana program addresses:
 - REST clients for fixtures, odds, scores, validation, and purchase quotes.
 - SSE odds and scores streams with reconnect support and heartbeat filtering.
 - Legacy and V2 score stat-validation DTOs.
-- Devnet PDA and `subscribe(service_level_id, weeks)` transaction helpers.
+- Devnet PDA and Token-2022 ATA helpers.
+- High-level Devnet setup flow for wallet, pricing matrix, subscribe, activation,
+  and API token storage.
+- `subscribe`, `request_devnet_faucet`, `purchase_subscription_token_usdt`, and
+  on-chain validation instruction builders.
+- View-like validation simulation helpers for fixtures, odds, legacy stats, and
+  V2 stats.
+- Paid purchase quote transaction safety checks.
 
 ## Quick Start
 
@@ -38,6 +45,12 @@ println!("fixtures: {}", fixtures.len());
 # }
 ```
 
+Wallet setup is available through `client.devnet_user_setup()`. It fetches the
+pricing matrix, ensures the user's Token-2022 ATA exists, submits
+`subscribe(service_level_id, weeks)`, signs the activation preimage, calls
+`/api/token/activate`, and stores the returned API token on the client. If an
+existing API token is supplied, on-chain subscribe and activation are skipped.
+
 The activation preimage is:
 
 ```text
@@ -55,6 +68,7 @@ ${txSig}::${jwt}
 - Repository: <https://github.com/Berektassuly/txline-rs>
 - API docs: <https://docs.rs/txline>
 - TxLINE docs: <https://txline.txodds.com/documentation/quickstart>
+- Devnet IDL source: <https://github.com/txodds/tx-on-chain/blob/main/documentation/programs/devnet.mdx>
 
 ## License
 

@@ -38,7 +38,7 @@ impl<'a> ScoresClient<'a> {
         epoch_day: u32,
         hour_of_day: u8,
         interval: u8,
-        fixture_id: Option<i32>,
+        fixture_id: Option<i64>,
     ) -> Result<Vec<Scores>> {
         validate_hour(hour_of_day)?;
         validate_interval(interval)?;
@@ -67,7 +67,7 @@ impl<'a> ScoresClient<'a> {
 
     pub async fn stat_validation_legacy(
         &self,
-        fixture_id: i32,
+        fixture_id: i64,
         seq: i32,
         stat_key: u32,
         stat_key2: Option<u32>,
@@ -88,7 +88,7 @@ impl<'a> ScoresClient<'a> {
 
     pub async fn stat_validation_v2(
         &self,
-        fixture_id: i32,
+        fixture_id: i64,
         seq: i32,
         stat_keys: impl IntoIterator<Item = u32>,
     ) -> Result<ScoresStatValidationV2> {

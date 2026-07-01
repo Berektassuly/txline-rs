@@ -16,7 +16,7 @@ pub struct ScoreStat {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScoresBatchSummary {
-    pub fixture_id: i32,
+    pub fixture_id: i64,
     pub update_stats: UpdateStats,
     pub event_stats_sub_tree_root: Hash32,
 }
@@ -59,7 +59,7 @@ pub struct StatTermInput {
 impl ScoresStatValidation {
     pub fn fixture_summary_input(&self) -> FixtureSummaryInput {
         FixtureSummaryInput {
-            fixture_id: i64::from(self.summary.fixture_id),
+            fixture_id: self.summary.fixture_id,
             update_count: self.summary.update_stats.update_count,
             min_timestamp: self.summary.update_stats.min_timestamp,
             max_timestamp: self.summary.update_stats.max_timestamp,

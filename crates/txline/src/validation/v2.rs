@@ -127,7 +127,7 @@ impl ScoresStatValidationV2 {
         StatValidationInput {
             ts: self.target_ts(),
             fixture_summary: FixtureSummaryInput {
-                fixture_id: i64::from(self.response.summary.fixture_id),
+                fixture_id: self.response.summary.fixture_id,
                 update_count: self.response.summary.update_stats.update_count,
                 min_timestamp: self.response.summary.update_stats.min_timestamp,
                 max_timestamp: self.response.summary.update_stats.max_timestamp,

@@ -1,8 +1,11 @@
 # Validation
 
-`/api/scores/stat-validation` is represented in both published modes. The SDK
-keeps network calls, response decoding, and on-chain payload preparation
-separate so settlement-oriented code can review each step.
+The SDK keeps network calls, response decoding, instruction construction, and
+on-chain simulation separate so settlement-oriented code can review each step.
+
+Devnet score validation payloads use `ScoresBatchSummary.fixture_id: i64`,
+matching the Devnet IDL. HTTP fixture IDs may be small in current examples, but
+Anchor-compatible instruction args must not narrow them to `i32`.
 
 ## Legacy
 
@@ -47,6 +50,38 @@ The SDK checks:
 The builder rejects out-of-bounds indices before malformed strategy data can be
 submitted.
 
+Tests and examples cover single-stat, binary, geometric two-leg, combined
+three-leg, and combined four-leg V2 strategy shapes.
+
+## On-Chain Simulation
+
+The Solana facade can build and simulate Anchor-compatible instructions for:
+
+- `validate_fixture`
+- `validate_fixture_batch`
+- `validate_odds`
+- `validate_stat`
+- `validate_stat_v2`
+
+Simulation helpers add a compute budget instruction with a default limit of
+`1_400_000` units, simulate against the configured Devnet RPC, and decode the
+program return data as a Borsh boolean. They do not fake validation by checking
+local DTO shape only.
+
+Live simulation examples are gated:
+
+```bash
+TXLINE_VALIDATE_ON_CHAIN=1
+TXLINE_WALLET=/path/to/devnet-wallet.json
+cargo run -p txline --example devnet_validate_stat
+cargo run -p txline --example devnet_validate_stat_v2
+cargo run -p txline --example devnet_validate_fixture
+cargo run -p txline --example devnet_validate_odds
+```
+
+Default tests cover deterministic instruction encoding and payload behavior, but
+do not require live Devnet availability.
+
 ## Sequence Source
 
 `seq` must come from a real score record from snapshot, updates, historical
@@ -62,3 +97,6 @@ Regression tests cover:
 - V2 stat/proof length checks,
 - V2 stat key order checks,
 - strategy index bounds.
+- `i64` fixture ID preservation in validation payloads,
+- validation instruction discriminator and fixture-ID encoding,
+- V2 strategy shape coverage.

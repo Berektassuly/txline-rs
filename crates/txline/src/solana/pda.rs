@@ -6,6 +6,7 @@ use crate::config::{DEVNET_PROGRAM_ID, DEVNET_TXL_MINT, DEVNET_USDT_MINT};
 use crate::{Result, TxlineError};
 
 pub const TOKEN_2022_PROGRAM_ID: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+pub const LEGACY_TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 pub const ASSOCIATED_TOKEN_PROGRAM_ID: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 pub const SYSTEM_PROGRAM_ID: &str = "11111111111111111111111111111111";
 pub const COMPUTE_BUDGET_PROGRAM_ID: &str = "ComputeBudget111111111111111111111111111111";
@@ -68,6 +69,15 @@ impl DevnetPdas {
     pub fn daily_batch_roots(&self, epoch_day: u16) -> Pda {
         let day = epoch_day.to_le_bytes();
         find_pda(&[b"daily_batch_roots", &day], &self.program_id)
+    }
+
+    /// PDA used by the Devnet IDL account `daily_odds_merkle_roots`.
+    ///
+    /// Upstream docs derive odds validation roots with the `daily_batch_roots`
+    /// seed, even though the validation instruction account is named
+    /// `daily_odds_merkle_roots`.
+    pub fn daily_odds_merkle_roots(&self, epoch_day: u16) -> Pda {
+        self.daily_batch_roots(epoch_day)
     }
 
     pub fn ten_daily_fixtures_roots(&self, epoch_day: u16) -> Pda {
