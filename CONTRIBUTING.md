@@ -48,10 +48,14 @@ From the repository root:
 ```bash
 cargo fmt --check
 cargo check --all-features
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test
 ```
 
 Run the full set before asking for review when code changes are involved.
+
+CI runs these checks on pull requests and pushes to `main`. It also runs an MSRV
+`cargo check` against the Rust version declared by the workspace.
 
 ## Live Devnet Work
 
@@ -76,6 +80,7 @@ When opening a PR, include:
 - what changed,
 - why the change is needed,
 - tests run,
+- whether strict Clippy passed,
 - whether live Devnet validation was run or skipped,
 - any remaining risks or follow-up work.
 

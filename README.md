@@ -137,10 +137,14 @@ The workspace uses Rust 2024 and currently declares MSRV `1.96`.
 ```bash
 cargo fmt --check
 cargo check --all-features
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test
 ```
 
 Normal tests are offline and do not require live TxLINE Devnet credentials.
+
+CI runs the same checks on pushes to `main` and pull requests, plus an MSRV
+`cargo check` using the workspace `rust-version`.
 
 ## Sources
 

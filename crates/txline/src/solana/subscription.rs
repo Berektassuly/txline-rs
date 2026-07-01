@@ -35,7 +35,7 @@ pub struct SubscribeParams {
 }
 
 pub fn validate_subscription_weeks(weeks: u8) -> Result<()> {
-    if weeks < 4 || weeks % 4 != 0 {
+    if weeks < 4 || !weeks.is_multiple_of(4) {
         return Err(TxlineError::invalid_input(
             "subscription duration must be at least 4 weeks and a multiple of 4",
         ));

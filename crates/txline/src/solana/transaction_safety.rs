@@ -14,7 +14,7 @@ use super::pda::{
 
 pub const LEGACY_TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 
-pub fn allowed_purchase_programs<'a>(txline_program_id: &'a str) -> [&'a str; 6] {
+pub fn allowed_purchase_programs(txline_program_id: &str) -> [&str; 6] {
     [
         txline_program_id,
         COMPUTE_BUDGET_PROGRAM_ID,
