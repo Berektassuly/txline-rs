@@ -153,42 +153,32 @@ where
                             if let Some(retry) = raw_event.retry {
                                 backoff = Duration::from_millis(retry).min(options.max_backoff);
                             }
-                            if raw_event.data.is_empty() {
-                                continue;
-                            }
-                            let data = match serde_json::from_str::<T>(&raw_event.data) {
-                                Ok(data) => data,
+                            match typed_event_from_raw::<T>(raw_event) {
+                                Ok(Some(event)) => yield Ok(event),
+                                Ok(None) => continue,
                                 Err(err) => {
-                                    yield Err(TxlineError::from(err));
+                                    yield Err(err);
                                     continue;
                                 }
-                            };
-                            yield Ok(SseEvent {
-                                id: raw_event.id,
-                                event: raw_event.event,
-                                data,
-                            });
+                            }
                         }
                     }
                     if let Some(raw_event) = decoder.finish() {
                         if let Some(id) = &raw_event.id {
                             last_event_id = Some(id.clone());
                         }
-                        if !raw_event.data.is_empty() {
-                            let data = match serde_json::from_str::<T>(&raw_event.data) {
-                                Ok(data) => data,
-                                Err(err) => {
-                                    yield Err(TxlineError::from(err));
-                                    tokio::time::sleep(backoff).await;
-                                    backoff = (backoff * 2).min(options.max_backoff);
-                                    continue;
-                                }
-                            };
-                            yield Ok(SseEvent {
-                                id: raw_event.id,
-                                event: raw_event.event,
-                                data,
-                            });
+                        if let Some(retry) = raw_event.retry {
+                            backoff = Duration::from_millis(retry).min(options.max_backoff);
+                        }
+                        match typed_event_from_raw::<T>(raw_event) {
+                            Ok(Some(event)) => yield Ok(event),
+                            Ok(None) => {}
+                            Err(err) => {
+                                yield Err(err);
+                                tokio::time::sleep(backoff).await;
+                                backoff = (backoff * 2).min(options.max_backoff);
+                                continue;
+                            }
                         }
                     }
                 }
@@ -202,6 +192,29 @@ where
     })
 }
 
+fn typed_event_from_raw<T>(raw_event: RawSseEvent) -> Result<Option<SseEvent<T>>>
+where
+    T: DeserializeOwned,
+{
+    if raw_event.data.is_empty() || is_heartbeat_event(&raw_event) {
+        return Ok(None);
+    }
+
+    let data = serde_json::from_str::<T>(&raw_event.data)?;
+    Ok(Some(SseEvent {
+        id: raw_event.id,
+        event: raw_event.event,
+        data,
+    }))
+}
+
+fn is_heartbeat_event(raw_event: &RawSseEvent) -> bool {
+    raw_event
+        .event
+        .as_deref()
+        .is_some_and(|event| event.eq_ignore_ascii_case("heartbeat"))
+}
+
 fn split_sse_block(buffer: &str) -> Option<(String, String)> {
     let lf = buffer.find("\n\n");
     let crlf = buffer.find("\r\n\r\n");
@@ -212,4 +225,64 @@ fn split_sse_block(buffer: &str) -> Option<(String, String)> {
         (None, None) => return None,
     };
     Some((buffer[..idx].to_owned(), buffer[idx + sep_len..].to_owned()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::http::models::{OddsPayload, Scores};
+
+    #[test]
+    fn typed_event_filters_heartbeat_json_before_deserialize() {
+        let mut decoder = SseDecoder::default();
+        let raw_event = decoder
+            .push(
+                br#"id: hb-1
+event: heartbeat
+data: {"Ts":12345}
+
+"#,
+            )
+            .unwrap()
+            .pop()
+            .unwrap();
+
+        let typed = typed_event_from_raw::<Scores>(raw_event).unwrap();
+        assert!(typed.is_none());
+    }
+
+    #[test]
+    fn typed_event_deserializes_score_data() {
+        let raw_event = parse_sse_block(
+            r#"id: score-1
+event: scores
+data: {"fixtureId":17952170,"gameState":"inprogress","startTime":1781123456789,"isTeam":true,"fixtureGroupId":1,"competitionId":2,"countryId":3,"sportId":4,"participant1IsHome":true,"participant2Id":20,"participant1Id":10,"action":"score","id":99,"ts":1781123456790,"connectionId":77,"seq":1,"stats":{"1001":3}}"#,
+        )
+        .unwrap();
+
+        let typed = typed_event_from_raw::<Scores>(raw_event).unwrap().unwrap();
+        assert_eq!(typed.id.as_deref(), Some("score-1"));
+        assert_eq!(typed.event.as_deref(), Some("scores"));
+        assert_eq!(typed.data.fixture_id, 17_952_170);
+        assert_eq!(typed.data.stats.unwrap().get("1001"), Some(&3));
+    }
+
+    #[test]
+    fn typed_event_deserializes_odds_data() {
+        let raw_event = parse_sse_block(
+            r#"id: odds-1
+event: odds
+data: {"FixtureId":17952170,"MessageId":"msg-1","Ts":1781123456790,"Bookmaker":"Book","BookmakerId":7,"SuperOddsType":"Match Winner","InRunning":true,"PriceNames":["Home","Away"],"Prices":[100,200],"Pct":["50","50"]}"#,
+        )
+        .unwrap();
+
+        let typed = typed_event_from_raw::<OddsPayload>(raw_event)
+            .unwrap()
+            .unwrap();
+        assert_eq!(typed.id.as_deref(), Some("odds-1"));
+        assert_eq!(typed.event.as_deref(), Some("odds"));
+        assert_eq!(typed.data.fixture_id, 17_952_170);
+        assert_eq!(typed.data.message_id, "msg-1");
+        assert_eq!(typed.data.prices, vec![100, 200]);
+    }
 }

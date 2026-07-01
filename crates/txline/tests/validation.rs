@@ -23,8 +23,8 @@ fn v2_preserves_requested_stat_key_order() {
     let validation =
         ScoresStatValidationV2::from_response(vec![1001, 1002], response_with(2)).unwrap();
     assert_eq!(validation.requested_stat_keys(), &[1001, 1002]);
-    assert_eq!(validation.stats_to_prove()[0].key, 1);
-    assert_eq!(validation.stats_to_prove()[1].key, 2);
+    assert_eq!(validation.stats_to_prove()[0].key, 1001);
+    assert_eq!(validation.stats_to_prove()[1].key, 1002);
     assert_eq!(validation.to_validation_input().stats.len(), 2);
 }
 
@@ -33,6 +33,16 @@ fn v2_rejects_length_mismatch() {
     let err = ScoresStatValidationV2::from_response(vec![1001, 1002, 1007], response_with(2))
         .unwrap_err();
     assert!(err.to_string().contains("statsToProve length"));
+}
+
+#[test]
+fn v2_rejects_stat_key_order_mismatch() {
+    let mut response = response_with(2);
+    response.stats_to_prove.swap(0, 1);
+
+    let err = ScoresStatValidationV2::from_response(vec![1001, 1002], response).unwrap_err();
+    assert!(err.to_string().contains("statsToProve[0].key"));
+    assert!(err.to_string().contains("requested statKeys[0]"));
 }
 
 #[test]
@@ -101,7 +111,7 @@ fn response_with_timestamps(
         ts: response_ts,
         stats_to_prove: (0..count)
             .map(|idx| ScoreStat {
-                key: (idx + 1) as u32,
+                key: 1001 + idx as u32,
                 value: idx as i32,
                 period: 0,
             })

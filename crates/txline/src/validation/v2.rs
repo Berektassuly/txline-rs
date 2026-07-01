@@ -63,6 +63,19 @@ impl ScoresStatValidationV2 {
                 requested_stat_keys.len()
             )));
         }
+        for (idx, (stat, requested_key)) in response
+            .stats_to_prove
+            .iter()
+            .zip(requested_stat_keys.iter())
+            .enumerate()
+        {
+            if stat.key != *requested_key {
+                return Err(TxlineError::validation(format!(
+                    "statsToProve[{idx}].key {} does not match requested statKeys[{idx}] {}",
+                    stat.key, requested_key
+                )));
+            }
+        }
         if response.stat_proofs.len() != response.stats_to_prove.len() {
             return Err(TxlineError::validation(format!(
                 "statProofs length {} does not match statsToProve length {}",

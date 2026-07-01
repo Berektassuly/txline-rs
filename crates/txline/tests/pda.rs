@@ -4,7 +4,7 @@ use txline::config::{
 };
 use txline::solana::pda::DevnetPdas;
 use txline::solana::subscription::validate_subscription_weeks;
-use txline::{Network, TxlineConfig};
+use txline::{Network, TxlineClient, TxlineConfig};
 
 #[test]
 fn devnet_config_constants_are_canonical() {
@@ -17,6 +17,30 @@ fn devnet_config_constants_are_canonical() {
     assert_eq!(cfg.txl_mint, DEVNET_TXL_MINT);
     assert_eq!(cfg.usdt_mint, DEVNET_USDT_MINT);
     assert_eq!(cfg.rpc_url, DEVNET_RPC_URL);
+}
+
+#[test]
+fn custom_devnet_rpc_urls_are_allowed() {
+    for rpc_url in [
+        "https://api.devnet.solana.com",
+        "https://devnet.helius-rpc.com/?api-key=test",
+        "https://custom-rpc.example.com/solana/devnet",
+    ] {
+        let client = TxlineClient::new(TxlineConfig::devnet().with_rpc_url(rpc_url)).unwrap();
+        assert_eq!(client.config().rpc_url, rpc_url);
+    }
+}
+
+#[test]
+fn obvious_mainnet_rpc_urls_are_rejected() {
+    for rpc_url in [
+        "https://api.mainnet-beta.solana.com",
+        "https://mainnet.helius-rpc.com/?api-key=test",
+        "https://rpc.example.com/solana/mainnet",
+    ] {
+        let err = TxlineClient::new(TxlineConfig::devnet().with_rpc_url(rpc_url)).unwrap_err();
+        assert!(err.to_string().contains("Devnet RPC endpoint"));
+    }
 }
 
 #[test]

@@ -47,6 +47,10 @@ impl TxlineConfig {
     }
 
     /// Override the Solana RPC URL while keeping all TxLINE Devnet values fixed.
+    ///
+    /// Callers must provide a Devnet RPC endpoint. Validation rejects obvious
+    /// mainnet-looking URLs, but custom providers cannot be fully verified
+    /// syntactically.
     pub fn with_rpc_url(mut self, rpc_url: impl Into<String>) -> Self {
         self.rpc_url = rpc_url.into();
         self
@@ -72,6 +76,11 @@ impl TxlineConfig {
         if self.rpc_url.trim().is_empty() {
             return Err(TxlineError::config("Solana RPC URL must not be empty"));
         }
+        if looks_like_mainnet_rpc_url(&self.rpc_url) {
+            return Err(TxlineError::config(
+                "Solana RPC URL must be a Devnet RPC endpoint for this SDK build",
+            ));
+        }
         Ok(())
     }
 }
@@ -80,4 +89,11 @@ impl Default for TxlineConfig {
     fn default() -> Self {
         Self::devnet()
     }
+}
+
+fn looks_like_mainnet_rpc_url(rpc_url: &str) -> bool {
+    let lower = rpc_url.trim().to_ascii_lowercase();
+    lower
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .any(|part| part == "mainnet" || part == "mainnetbeta")
 }
