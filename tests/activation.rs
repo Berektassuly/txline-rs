@@ -1,0 +1,1 @@
+//! Activation integration test scaffold.

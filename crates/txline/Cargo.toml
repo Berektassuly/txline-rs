@@ -1,0 +1,22 @@
+[package]
+name = "txline"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "Rust SDK scaffold for TxLINE."
+publish = false
+
+[lib]
+name = "txline"
+path = "src/lib.rs"
+
+[features]
+default = ["http", "devnet"]
+http = []
+stream = ["http"]
+solana = []
+validation = ["solana"]
+devnet = []
+mainnet = []
+
+[dependencies]
