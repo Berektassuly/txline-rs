@@ -15,16 +15,22 @@ gaps honestly.
 
 The machine-readable source is `txline::solana::idl::DEVNET_INSTRUCTION_COVERAGE`.
 
+The public TxODDS trading flows listed as implemented below are low-level Rust
+instruction builders. They require callers to pass every trading account
+explicitly and do not derive unverified PDAs, manage a market lifecycle, sign
+transactions, or send transactions. Automatic PDA derivation remains limited to
+helpers whose seeds have already been verified in this SDK.
+
 | Instruction | Status | Notes |
 | --- | --- | --- |
-| `audit_trade_result` | public_flow_planned | Trading audit flow is not yet exposed as a high-level SDK API. |
-| `claim_batch_legacy` | public_flow_planned | Claim/refund flows remain planned. |
-| `claim_via_resolution` | public_flow_planned | Resolution-claim flow remains planned. |
-| `close_intent` | public_flow_planned | Trading intent lifecycle remains planned. |
+| `audit_trade_result` | implemented | Low-level public trading audit builder with explicit caller-supplied accounts. |
+| `claim_batch_legacy` | implemented | Low-level legacy batch claim builder with explicit caller-supplied accounts. |
+| `claim_via_resolution` | implemented | Low-level resolution claim builder with explicit caller-supplied accounts. |
+| `close_intent` | implemented | Low-level intent close builder with explicit caller-supplied accounts. |
 | `close_pricing_matrix` | admin_only_planned | Admin-only pricing matrix management. |
-| `create_intent` | public_flow_planned | Trading intent lifecycle remains planned. |
-| `create_trade` | public_flow_planned | Direct trade creation remains planned. |
-| `execute_match` | public_flow_planned | Order matching remains planned. |
+| `create_intent` | implemented | Low-level intent creation builder with explicit caller-supplied accounts. |
+| `create_trade` | implemented | Low-level direct trade creation builder with explicit caller-supplied accounts. |
+| `execute_match` | implemented | Low-level order match execution builder with explicit caller-supplied accounts. |
 | `expose_structs` | intentionally_unsupported | IDL/type exposure helper, not an end-user flow. |
 | `initialize_pricing_matrix` | admin_only_planned | Admin-only pricing matrix management. |
 | `initialize_treasury_v2` | admin_only_planned | Admin-only treasury setup. |
@@ -34,10 +40,10 @@ The machine-readable source is `txline::solana::idl::DEVNET_INSTRUCTION_COVERAGE
 | `insert_scores_root` | admin_only_planned | Oracle root insertion is not exposed to casual SDK users. |
 | `publish_resolution_root` | admin_only_planned | Oracle resolution root publishing is admin-only. |
 | `purchase_subscription_token_usdt` | implemented | Typed builder and quote transaction safety checks are implemented. |
-| `refund_batch` | public_flow_planned | Batch refunds remain planned. |
+| `refund_batch` | implemented | Low-level batch refund builder with explicit caller-supplied accounts. |
 | `request_devnet_faucet` | implemented | Typed builder accepts an explicit faucet tracker account; tracker PDA derivation is not published in the IDL. |
-| `settle_matched_trade` | public_flow_planned | Matched trade settlement remains planned. |
-| `settle_trade` | public_flow_planned | Direct trade settlement remains planned. |
+| `settle_matched_trade` | implemented | Low-level matched trade settlement builder with explicit caller-supplied accounts and proof inputs. |
+| `settle_trade` | implemented | Low-level direct trade settlement builder with explicit caller-supplied accounts and proof inputs. |
 | `subscribe` | implemented | Subscription transaction builder and high-level setup flow are implemented. |
 | `update_pricing_matrix` | admin_only_planned | Admin-only pricing matrix management. |
 | `validate_fixture` | implemented | Typed instruction builder and simulation helper are implemented. |

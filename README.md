@@ -35,6 +35,8 @@ The crate currently includes:
 - Anchor-compatible `subscribe(service_level_id, weeks)`,
   `request_devnet_faucet`, `purchase_subscription_token_usdt`, and validation
   instruction helpers.
+- Low-level non-admin TxODDS trading instruction builders for intents, direct
+  trades, matching, settlement, claims, refunds, and audit checks.
 - A high-level Devnet setup flow analogous to the upstream TypeScript
   `setupUser` helper.
 - Pricing matrix account decoding and paid quote transaction safety checks.
@@ -92,6 +94,15 @@ For the standard bundle with no selected leagues:
 ```text
 ${txSig}::${jwt}
 ```
+
+## Trading Builders
+
+The SDK exposes typed Rust builders for the public, non-admin TxODDS Devnet
+trading instructions from the pinned PR #3 IDL (`1.5.5`). These are low-level
+instruction builders in `txline::solana::trading`: callers supply every trading
+account explicitly, including token program and vault accounts. The SDK does not
+derive new trading PDAs, manage the prediction-market lifecycle, sign
+transactions, or send transactions for these flows.
 
 ## Devnet Configuration
 

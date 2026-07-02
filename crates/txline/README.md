@@ -21,6 +21,8 @@ Solana program addresses:
   and API token storage.
 - `subscribe`, `request_devnet_faucet`, `purchase_subscription_token_usdt`, and
   on-chain validation instruction builders.
+- Low-level public TxODDS trading builders for intents, direct trades, matching,
+  settlement, claims, refunds, and audit checks.
 - View-like validation simulation helpers for fixtures, odds, legacy stats, and
   V2 stats.
 - Paid purchase quote transaction safety checks.
@@ -62,6 +64,13 @@ For the standard bundle with no selected leagues:
 ```text
 ${txSig}::${jwt}
 ```
+
+## Trading Builders
+
+`txline::solana::trading` includes typed builders for the public, non-admin
+TxODDS Devnet trading instructions in the pinned PR #3 IDL (`1.5.5`). They are
+explicit-account instruction builders only; callers remain responsible for PDA
+selection, market lifecycle orchestration, signing, simulation, and sending.
 
 ## Documentation
 

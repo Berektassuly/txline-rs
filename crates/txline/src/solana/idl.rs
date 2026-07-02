@@ -22,23 +22,23 @@ pub const DEVNET_PR_IDL_VERSION: &str = "1.5.5";
 pub const DEVNET_INSTRUCTION_COVERAGE: &[DevnetInstructionCoverage] = &[
     DevnetInstructionCoverage {
         name: "audit_trade_result",
-        status: DevnetInstructionStatus::PublicFlowPlanned,
-        notes: "trading settlement flow is not yet exposed as a high-level SDK API",
+        status: DevnetInstructionStatus::Implemented,
+        notes: "low-level public trading audit builder implemented with explicit caller-supplied accounts",
     },
     DevnetInstructionCoverage {
         name: "claim_batch_legacy",
-        status: DevnetInstructionStatus::PublicFlowPlanned,
-        notes: "claim/refund flows remain planned",
+        status: DevnetInstructionStatus::Implemented,
+        notes: "low-level legacy batch claim builder implemented with explicit caller-supplied accounts",
     },
     DevnetInstructionCoverage {
         name: "claim_via_resolution",
-        status: DevnetInstructionStatus::PublicFlowPlanned,
-        notes: "resolution-claim flow remains planned",
+        status: DevnetInstructionStatus::Implemented,
+        notes: "low-level resolution claim builder implemented with explicit caller-supplied accounts",
     },
     DevnetInstructionCoverage {
         name: "close_intent",
-        status: DevnetInstructionStatus::PublicFlowPlanned,
-        notes: "trading intent lifecycle remains planned",
+        status: DevnetInstructionStatus::Implemented,
+        notes: "low-level intent close builder implemented with explicit caller-supplied accounts",
     },
     DevnetInstructionCoverage {
         name: "close_pricing_matrix",
@@ -47,18 +47,18 @@ pub const DEVNET_INSTRUCTION_COVERAGE: &[DevnetInstructionCoverage] = &[
     },
     DevnetInstructionCoverage {
         name: "create_intent",
-        status: DevnetInstructionStatus::PublicFlowPlanned,
-        notes: "trading intent lifecycle remains planned",
+        status: DevnetInstructionStatus::Implemented,
+        notes: "low-level intent creation builder implemented with explicit caller-supplied accounts",
     },
     DevnetInstructionCoverage {
         name: "create_trade",
-        status: DevnetInstructionStatus::PublicFlowPlanned,
-        notes: "direct trade creation remains planned",
+        status: DevnetInstructionStatus::Implemented,
+        notes: "low-level direct trade creation builder implemented with explicit caller-supplied accounts",
     },
     DevnetInstructionCoverage {
         name: "execute_match",
-        status: DevnetInstructionStatus::PublicFlowPlanned,
-        notes: "order matching remains planned",
+        status: DevnetInstructionStatus::Implemented,
+        notes: "low-level order match execution builder implemented with explicit caller-supplied accounts",
     },
     DevnetInstructionCoverage {
         name: "expose_structs",
@@ -107,8 +107,8 @@ pub const DEVNET_INSTRUCTION_COVERAGE: &[DevnetInstructionCoverage] = &[
     },
     DevnetInstructionCoverage {
         name: "refund_batch",
-        status: DevnetInstructionStatus::PublicFlowPlanned,
-        notes: "batch refunds remain planned",
+        status: DevnetInstructionStatus::Implemented,
+        notes: "low-level batch refund builder implemented with explicit caller-supplied accounts",
     },
     DevnetInstructionCoverage {
         name: "request_devnet_faucet",
@@ -117,13 +117,13 @@ pub const DEVNET_INSTRUCTION_COVERAGE: &[DevnetInstructionCoverage] = &[
     },
     DevnetInstructionCoverage {
         name: "settle_matched_trade",
-        status: DevnetInstructionStatus::PublicFlowPlanned,
-        notes: "matched trade settlement remains planned",
+        status: DevnetInstructionStatus::Implemented,
+        notes: "low-level matched trade settlement builder implemented with explicit caller-supplied accounts and proof inputs",
     },
     DevnetInstructionCoverage {
         name: "settle_trade",
-        status: DevnetInstructionStatus::PublicFlowPlanned,
-        notes: "direct trade settlement remains planned",
+        status: DevnetInstructionStatus::Implemented,
+        notes: "low-level direct trade settlement builder implemented with explicit caller-supplied accounts and proof inputs",
     },
     DevnetInstructionCoverage {
         name: "subscribe",
