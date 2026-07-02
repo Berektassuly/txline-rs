@@ -10,6 +10,7 @@ use crate::solana::pda::{
     ASSOCIATED_TOKEN_PROGRAM_ID, DevnetPdas, LEGACY_TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID, parse_pubkey,
 };
+use crate::solana::transaction_safety::{PurchaseTransactionSafetyConfig, ValidatedPurchaseQuote};
 use crate::{Result, TxlineClient, TxlineError};
 
 pub const MAX_QUOTE_TXLINE_AMOUNT: u64 = 100_000_000;
@@ -34,6 +35,9 @@ pub struct PurchaseSubscriptionTokenUsdtAccounts {
     pub associated_token_program: Pubkey,
 }
 
+/// Fetch a raw backend purchase quote.
+///
+/// For signing or submission flows, prefer [`purchase_quote_checked`].
 pub async fn purchase_quote(
     client: &TxlineClient,
     buyer_pubkey: impl Into<String>,
@@ -47,6 +51,23 @@ pub async fn purchase_quote(
     client
         .post_json("/guest/purchase/quote", &request, false)
         .await
+}
+
+/// Fetch a purchase quote and validate its transaction before returning bytes.
+pub async fn purchase_quote_checked(
+    client: &TxlineClient,
+    buyer: Pubkey,
+    txline_amount: u64,
+    expected_backend_signer: Pubkey,
+) -> Result<ValidatedPurchaseQuote> {
+    let quote = purchase_quote(client, buyer.to_string(), txline_amount).await?;
+    let safety_config = PurchaseTransactionSafetyConfig::devnet(
+        client.config(),
+        buyer,
+        txline_amount,
+        expected_backend_signer,
+    )?;
+    ValidatedPurchaseQuote::new(quote, &safety_config)
 }
 
 pub fn validate_quote_amount(txline_amount: u64) -> Result<()> {
@@ -114,7 +135,12 @@ pub fn purchase_subscription_token_usdt_instruction(
 }
 
 impl PurchaseQuoteResponse {
-    pub fn transaction_bytes(&self) -> Result<Vec<u8>> {
+    /// Decode the backend-supplied transaction bytes without safety checks.
+    ///
+    /// This is a raw, low-level accessor for diagnostics and compatibility. Do
+    /// not sign or submit these bytes until
+    /// [`PurchaseQuoteResponse::validated_transaction_bytes`] has succeeded.
+    pub fn raw_transaction_bytes_unchecked(&self) -> Result<Vec<u8>> {
         let bytes = STANDARD.decode(&self.transaction_base64)?;
         if bytes.is_empty() {
             return Err(TxlineError::solana(
@@ -122,6 +148,19 @@ impl PurchaseQuoteResponse {
             ));
         }
         Ok(bytes)
+    }
+
+    /// Decode the backend-supplied transaction bytes without safety checks.
+    ///
+    /// Prefer [`PurchaseQuoteResponse::validated_transaction_bytes`] before
+    /// signing or submitting a purchase quote. Use
+    /// [`PurchaseQuoteResponse::raw_transaction_bytes_unchecked`] for explicitly
+    /// low-level inspection.
+    #[deprecated(
+        note = "use validated_transaction_bytes before signing, or raw_transaction_bytes_unchecked for low-level inspection"
+    )]
+    pub fn transaction_bytes(&self) -> Result<Vec<u8>> {
+        self.raw_transaction_bytes_unchecked()
     }
 
     pub fn validate_financial_shape(&self) -> Result<()> {

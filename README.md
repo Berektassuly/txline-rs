@@ -42,6 +42,10 @@ The crate currently includes:
 - Pricing matrix account decoding and paid quote transaction safety checks.
 - A machine-readable Devnet IDL instruction coverage manifest.
 
+For paid purchase signing flows, use `TxlineClient::purchase_quote_checked`.
+It requires the expected backend signer and returns transaction bytes only after
+SDK safety validation succeeds.
+
 ## Quick Start
 
 ```rust,no_run
@@ -95,14 +99,19 @@ For the standard bundle with no selected leagues:
 ${txSig}::${jwt}
 ```
 
+Only sign this compatibility-bound message for the matching TxLINE Devnet host,
+network, and subscription transaction.
+
 ## Trading Builders
 
 The SDK exposes typed Rust builders for the public, non-admin TxODDS Devnet
 trading instructions from the pinned PR #3 IDL (`1.5.5`). These are low-level
 instruction builders in `txline::solana::trading`: callers supply every trading
 account explicitly, including token program and vault accounts. The SDK does not
-derive new trading PDAs, manage the prediction-market lifecycle, sign
-transactions, or send transactions for these flows.
+derive or validate trading PDAs, mints, token programs, or vault accounts,
+manage the prediction-market lifecycle, sign transactions, or send transactions
+for these flows. Caller review, simulation where appropriate, and deployed
+on-chain constraints remain required before sending trading transactions.
 
 ## Devnet Configuration
 
@@ -127,7 +136,9 @@ let cfg = TxlineConfig::devnet()
 ```
 
 Validation rejects empty RPC URLs and obvious mainnet-looking RPC overrides, but
-callers are still responsible for providing a real Devnet RPC endpoint.
+callers are still responsible for providing a real Devnet RPC endpoint. The
+guard is syntactic; it does not prove that an opaque custom provider is connected
+to Devnet.
 
 ## Examples
 

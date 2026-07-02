@@ -50,7 +50,8 @@ REST clients are exposed from `TxlineClient`:
 
 Authenticated requests automatically retry once with a fresh guest JWT on HTTP
 401. REST `403` is left as an entitlement or authorization error. HTTP status
-errors preserve the status code and response body.
+errors preserve the status code and response body for programmatic inspection,
+while formatted error output redacts the response body.
 
 ### Streams
 
@@ -84,17 +85,23 @@ input.
 Low-level public TxODDS trading builders are available for intents, direct
 trades, matching, settlement, claims, refunds, and audit checks. These builders
 only construct instructions from caller-supplied accounts and parameters. They
-do not derive unverified trading PDAs, manage a market lifecycle, sign
-transactions, or send transactions.
+do not derive or validate trading PDAs, mints, token programs, or vault
+accounts, manage a market lifecycle, sign transactions, or send transactions.
+Caller review, simulation where appropriate, and deployed on-chain constraints
+remain required.
 
 ### Paid Purchase Safety
 
-Purchase quote safety checks decode the returned transaction, verify the fee
-payer and expected backend signer when configured, limit invoked programs to the
-known purchase allowlist, require exactly one
-`purchase_subscription_token_usdt` instruction, discriminator-match the
-instruction, verify the requested TXLINE amount, and check the expected Devnet
-account layout.
+Purchase quote safety checks decode the returned transaction only after the
+quote's financial shape is checked, verify the fee payer and required expected
+backend signer, limit invoked programs to the known purchase allowlist, require
+exactly one `purchase_subscription_token_usdt` instruction, discriminator-match
+the instruction, verify the requested TXLINE amount, and check the expected
+Devnet account layout. `TxlineClient::purchase_quote_checked` performs this
+validation before returning a `ValidatedPurchaseQuote` with transaction bytes.
+Raw quote transaction bytes remain available only as a low-level inspection
+helper; signing flows should use the checked client method or validated
+accessor.
 
 ## Public Surface
 
@@ -107,6 +114,7 @@ The crate exports a small top-level API:
 - `ApiToken`
 - `AuthHeaders`
 - `GuestSession`
+- `ValidatedPurchaseQuote`
 - `activation_preimage`
 - `Result`
 - `TxlineError`

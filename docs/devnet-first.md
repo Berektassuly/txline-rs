@@ -49,6 +49,9 @@ catch accidental URLs containing clear mainnet markers, but it cannot prove that
 an arbitrary provider is actually connected to Devnet.
 
 Callers must provide a Devnet RPC endpoint whenever overriding the default RPC.
+A future live genesis or version check could be added as an explicit opt-in
+validation step for applications that want runtime confirmation from their RPC
+provider.
 
 ```rust,no_run
 # use txline::TxlineConfig;

@@ -1,4 +1,6 @@
-use txline::{ApiToken, GuestJwt, TxlineClient, TxlineConfig, activation_preimage};
+use reqwest::header::AUTHORIZATION;
+use txline::auth::API_TOKEN_HEADER;
+use txline::{ApiToken, AuthHeaders, GuestJwt, TxlineClient, TxlineConfig, activation_preimage};
 
 #[test]
 fn activation_preimage_preserves_empty_league_slot() {
@@ -28,4 +30,25 @@ fn auth_debug_redacts_secrets() {
     assert!(!debug.contains("secret-api-token"));
     assert!(debug.contains("<redacted>"));
     assert!(headers.has_api_token());
+}
+
+#[test]
+fn token_constructors_trim_surrounding_whitespace_before_headers() {
+    let jwt = GuestJwt::new(" \tguest.jwt\n").unwrap();
+    let api_token = ApiToken::new("\napi-token \t").unwrap();
+
+    assert_eq!(jwt.as_str(), "guest.jwt");
+    assert_eq!(api_token.as_str(), "api-token");
+
+    let headers = AuthHeaders::new(jwt, Some(api_token))
+        .to_header_map()
+        .unwrap();
+    assert_eq!(headers[AUTHORIZATION], "Bearer guest.jwt");
+    assert_eq!(headers[API_TOKEN_HEADER], "api-token");
+}
+
+#[test]
+fn token_constructors_reject_whitespace_only_values() {
+    assert!(GuestJwt::new(" \t\n").is_err());
+    assert!(ApiToken::new(" \t\n").is_err());
 }

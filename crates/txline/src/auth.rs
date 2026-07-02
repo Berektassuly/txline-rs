@@ -13,9 +13,12 @@ pub const API_TOKEN_HEADER: &str = "X-Api-Token";
 pub struct GuestJwt(String);
 
 impl GuestJwt {
+    /// Create a guest JWT, trimming leading and trailing whitespace.
+    ///
+    /// Empty and whitespace-only values are rejected.
     pub fn new(token: impl Into<String>) -> Result<Self> {
-        let token = token.into();
-        if token.trim().is_empty() {
+        let token = token.into().trim().to_owned();
+        if token.is_empty() {
             return Err(TxlineError::invalid_input("guest JWT must not be empty"));
         }
         Ok(Self(token))
@@ -36,9 +39,12 @@ impl fmt::Debug for GuestJwt {
 pub struct ApiToken(String);
 
 impl ApiToken {
+    /// Create an activated API token, trimming leading and trailing whitespace.
+    ///
+    /// Empty and whitespace-only values are rejected.
     pub fn new(token: impl Into<String>) -> Result<Self> {
-        let token = token.into();
-        if token.trim().is_empty() {
+        let token = token.into().trim().to_owned();
+        if token.is_empty() {
             return Err(TxlineError::invalid_input("API token must not be empty"));
         }
         Ok(Self(token))

@@ -27,6 +27,10 @@ Solana program addresses:
   V2 stats.
 - Paid purchase quote transaction safety checks.
 
+For paid purchase signing flows, use `TxlineClient::purchase_quote_checked`.
+It requires the expected backend signer and returns transaction bytes only after
+SDK safety validation succeeds.
+
 ## Quick Start
 
 ```rust,no_run
@@ -65,12 +69,17 @@ For the standard bundle with no selected leagues:
 ${txSig}::${jwt}
 ```
 
+Only sign this compatibility-bound message for the matching TxLINE Devnet host,
+network, and subscription transaction.
+
 ## Trading Builders
 
 `txline::solana::trading` includes typed builders for the public, non-admin
 TxODDS Devnet trading instructions in the pinned PR #3 IDL (`1.5.5`). They are
 explicit-account instruction builders only; callers remain responsible for PDA
-selection, market lifecycle orchestration, signing, simulation, and sending.
+selection and review. The builders do not validate mints, token programs, vault
+accounts, or PDA derivations, and callers remain responsible for market
+lifecycle orchestration, signing, simulation where appropriate, and sending.
 
 ## Documentation
 

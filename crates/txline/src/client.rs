@@ -4,6 +4,7 @@ use std::sync::{Arc, RwLock};
 
 use reqwest::{Method, Response, StatusCode, Url};
 use serde::{Serialize, de::DeserializeOwned};
+use solana_sdk::pubkey::Pubkey;
 use tokio::sync::Mutex;
 
 use crate::auth::{
@@ -13,6 +14,7 @@ use crate::auth::{
 use crate::config::TxlineConfig;
 use crate::http::{fixtures::FixturesClient, odds::OddsClient, scores::ScoresClient};
 use crate::solana::SolanaClient;
+use crate::solana::transaction_safety::ValidatedPurchaseQuote;
 use crate::stream::{odds::OddsStreamClient, scores::ScoresStreamClient};
 use crate::{Result, TxlineError};
 
@@ -74,12 +76,33 @@ impl TxlineClient {
         SolanaClient::new(&self.config)
     }
 
+    /// Fetch a raw purchase quote response from the backend.
+    ///
+    /// For signing or submission flows, prefer
+    /// [`TxlineClient::purchase_quote_checked`], which validates the quote
+    /// transaction before exposing transaction bytes.
     pub async fn purchase_quote(
         &self,
         buyer_pubkey: impl Into<String>,
         txline_amount: u64,
     ) -> Result<crate::http::models::PurchaseQuoteResponse> {
         crate::solana::purchase::purchase_quote(self, buyer_pubkey, txline_amount).await
+    }
+
+    /// Fetch and validate a purchase quote before returning transaction bytes.
+    pub async fn purchase_quote_checked(
+        &self,
+        buyer: Pubkey,
+        txline_amount: u64,
+        expected_backend_signer: Pubkey,
+    ) -> Result<ValidatedPurchaseQuote> {
+        crate::solana::purchase::purchase_quote_checked(
+            self,
+            buyer,
+            txline_amount,
+            expected_backend_signer,
+        )
+        .await
     }
 
     /// Acquire and store a fresh Devnet guest JWT.
@@ -377,10 +400,20 @@ fn is_refreshable_sse_status(status: StatusCode) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::DEVNET_PROGRAM_ID;
     use crate::config::{
-        DEVNET_API_HOST, DEVNET_PROGRAM_ID, DEVNET_RPC_URL, DEVNET_TXL_MINT, DEVNET_USDT_MINT,
-        Network,
+        DEVNET_API_HOST, DEVNET_RPC_URL, DEVNET_TXL_MINT, DEVNET_USDT_MINT, Network,
     };
+    use crate::solana::pda::parse_pubkey;
+    use crate::solana::purchase::{
+        devnet_purchase_subscription_token_usdt_accounts,
+        purchase_subscription_token_usdt_instruction,
+    };
+    use base64::Engine;
+    use base64::engine::general_purpose::STANDARD;
+    use solana_sdk::hash::Hash;
+    use solana_sdk::signature::{Keypair, Signer};
+    use solana_sdk::transaction::{Transaction, VersionedTransaction};
     use std::io::{Read, Write};
     use std::net::{TcpListener, TcpStream};
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -448,6 +481,43 @@ mod tests {
         assert_eq!(server.auth_count.load(Ordering::SeqCst), 1);
     }
 
+    #[tokio::test]
+    async fn purchase_quote_checked_returns_validated_transaction_bytes() {
+        let buyer = Keypair::new();
+        let backend = Keypair::new();
+        let transaction = signed_purchase_transaction(&buyer, &backend, 1_000);
+        let expected_bytes = wincode::serialize(&transaction).unwrap();
+        let server = TestServer::spawn_with_quote(1, quote_json(&transaction));
+        let client = test_client(&server);
+        client.set_guest_jwt(GuestJwt::new("guest").unwrap());
+
+        let quote = client
+            .purchase_quote_checked(buyer.pubkey(), 1_000, backend.pubkey())
+            .await
+            .unwrap();
+
+        assert_eq!(quote.transaction_bytes(), expected_bytes.as_slice());
+        assert!(quote.safety_report.backend_signer_present);
+        assert_eq!(quote.safety_report.txline_purchase_instruction_count, 1);
+    }
+
+    #[tokio::test]
+    async fn purchase_quote_checked_rejects_malformed_transaction_bytes() {
+        let buyer = Keypair::new();
+        let backend = Keypair::new();
+        let transaction = signed_purchase_transaction(&buyer, &backend, 999);
+        let server = TestServer::spawn_with_quote(1, quote_json(&transaction));
+        let client = test_client(&server);
+        client.set_guest_jwt(GuestJwt::new("guest").unwrap());
+
+        let err = client
+            .purchase_quote_checked(buyer.pubkey(), 1_000, backend.pubkey())
+            .await
+            .unwrap_err();
+
+        assert!(err.to_string().contains("txline_amount"));
+    }
+
     struct TestServer {
         base_url: String,
         auth_count: Arc<AtomicUsize>,
@@ -455,6 +525,14 @@ mod tests {
 
     impl TestServer {
         fn spawn(max_requests: usize) -> Self {
+            Self::spawn_with_optional_quote(max_requests, None)
+        }
+
+        fn spawn_with_quote(max_requests: usize, quote_body: String) -> Self {
+            Self::spawn_with_optional_quote(max_requests, Some(quote_body))
+        }
+
+        fn spawn_with_optional_quote(max_requests: usize, quote_body: Option<String>) -> Self {
             let listener = TcpListener::bind("127.0.0.1:0").unwrap();
             let base_url = format!("http://{}", listener.local_addr().unwrap());
             let auth_count = Arc::new(AtomicUsize::new(0));
@@ -471,6 +549,7 @@ mod tests {
                         &auth_count_for_thread,
                         &rest_count_for_thread,
                         &sse_count_for_thread,
+                        quote_body.as_deref(),
                     );
                 }
             });
@@ -487,6 +566,7 @@ mod tests {
         auth_count: &AtomicUsize,
         rest_count: &AtomicUsize,
         sse_count: &AtomicUsize,
+        quote_body: Option<&str>,
     ) {
         stream
             .set_read_timeout(Some(Duration::from_secs(2)))
@@ -502,6 +582,7 @@ mod tests {
                 break;
             }
         }
+        read_request_body(&mut stream, &mut request);
         let request = String::from_utf8_lossy(&request);
         let path = request
             .lines()
@@ -523,6 +604,11 @@ mod tests {
             } else {
                 ("200 OK", "text/event-stream", "")
             }
+        } else if path == "/api/guest/purchase/quote" {
+            match quote_body {
+                Some(body) => ("200 OK", "application/json", body),
+                None => ("500 Internal Server Error", "text/plain", "missing quote"),
+            }
         } else {
             ("404 Not Found", "text/plain", "missing")
         };
@@ -531,6 +617,61 @@ mod tests {
             body.len()
         );
         stream.write_all(response.as_bytes()).unwrap();
+    }
+
+    fn read_request_body(stream: &mut TcpStream, request: &mut Vec<u8>) {
+        let header_end = request
+            .windows(4)
+            .position(|window| window == b"\r\n\r\n")
+            .map(|position| position + 4);
+        let Some(header_end) = header_end else {
+            return;
+        };
+        let headers = String::from_utf8_lossy(&request[..header_end]);
+        let content_length = headers
+            .lines()
+            .find_map(|line| {
+                let (name, value) = line.split_once(':')?;
+                name.eq_ignore_ascii_case("content-length")
+                    .then(|| value.trim().parse::<usize>().ok())
+                    .flatten()
+            })
+            .unwrap_or(0);
+        let target_len = header_end + content_length;
+        let mut buf = [0u8; 1024];
+        while request.len() < target_len {
+            match stream.read(&mut buf) {
+                Ok(0) | Err(_) => break,
+                Ok(read) => request.extend_from_slice(&buf[..read]),
+            }
+        }
+    }
+
+    fn signed_purchase_transaction(
+        buyer: &Keypair,
+        backend: &Keypair,
+        amount: u64,
+    ) -> VersionedTransaction {
+        let program_id = parse_pubkey(DEVNET_PROGRAM_ID).unwrap();
+        let accounts =
+            devnet_purchase_subscription_token_usdt_accounts(buyer.pubkey(), backend.pubkey())
+                .unwrap();
+        let purchase_ix =
+            purchase_subscription_token_usdt_instruction(program_id, accounts, amount).unwrap();
+        let blockhash = Hash::new_unique();
+        let mut transaction = Transaction::new_with_payer(&[purchase_ix], Some(&buyer.pubkey()));
+        transaction.sign(&[buyer, backend], blockhash);
+        VersionedTransaction::from(transaction)
+    }
+
+    fn quote_json(transaction: &VersionedTransaction) -> String {
+        serde_json::json!({
+            "transactionBase64": STANDARD.encode(wincode::serialize(transaction).unwrap()),
+            "baseUsdtCost": 1.0,
+            "feeUsdtAmount": 0.25,
+            "totalUsdtCharged": 1.25,
+        })
+        .to_string()
     }
 
     fn test_client(server: &TestServer) -> TxlineClient {

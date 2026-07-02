@@ -127,11 +127,19 @@ impl<'de> Visitor<'de> for Hash32Visitor {
     where
         A: SeqAccess<'de>,
     {
-        let mut bytes = Vec::new();
-        while let Some(byte) = seq.next_element::<u8>()? {
-            bytes.push(byte);
+        let mut bytes = [0u8; 32];
+        for (idx, slot) in bytes.iter_mut().enumerate() {
+            let Some(byte) = seq.next_element::<u8>()? else {
+                return Err(A::Error::custom(format!(
+                    "expected 32 bytes, received {idx}"
+                )));
+            };
+            *slot = byte;
         }
-        Hash32::from_bytes(bytes).map_err(A::Error::custom)
+        if seq.next_element::<u8>()?.is_some() {
+            return Err(A::Error::custom("expected 32 bytes, received more than 32"));
+        }
+        Ok(Hash32(bytes))
     }
 }
 

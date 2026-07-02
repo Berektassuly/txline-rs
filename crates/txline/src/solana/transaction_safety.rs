@@ -20,6 +20,21 @@ pub struct PurchaseTransactionSafetyConfig {
     pub txline_program_id: Pubkey,
     pub expected_buyer: Pubkey,
     pub expected_txline_amount: u64,
+    /// Expected backend signer for safe purchase quote verification.
+    ///
+    /// Safe verification rejects configurations where this is `None`. The field
+    /// remains optional to preserve existing struct construction, but callers
+    /// that intentionally need unbound backend inspection must use
+    /// [`LowLevelPurchaseTransactionSafetyConfig`] and the explicitly low-level
+    /// verifier functions.
+    pub expected_backend_signer: Option<Pubkey>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LowLevelPurchaseTransactionSafetyConfig {
+    pub txline_program_id: Pubkey,
+    pub expected_buyer: Pubkey,
+    pub expected_txline_amount: u64,
     pub expected_backend_signer: Option<Pubkey>,
 }
 
@@ -31,8 +46,53 @@ pub struct PurchaseTransactionSafetyReport {
     pub backend_signer_present: bool,
 }
 
+/// Purchase quote that has passed SDK safety validation.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ValidatedPurchaseQuote {
+    /// Original backend quote response retained for pricing display and audit.
+    pub quote: PurchaseQuoteResponse,
+    /// Safety report produced from the decoded transaction.
+    pub safety_report: PurchaseTransactionSafetyReport,
+    transaction_bytes: Vec<u8>,
+}
+
 impl PurchaseTransactionSafetyConfig {
     pub fn devnet(
+        config: &TxlineConfig,
+        expected_buyer: Pubkey,
+        expected_txline_amount: u64,
+        expected_backend_signer: Pubkey,
+    ) -> Result<Self> {
+        Ok(Self {
+            txline_program_id: parse_pubkey(&config.program_id)?,
+            expected_buyer,
+            expected_txline_amount,
+            expected_backend_signer: Some(expected_backend_signer),
+        })
+    }
+
+    fn low_level_config(&self) -> Result<LowLevelPurchaseTransactionSafetyConfig> {
+        let expected_backend_signer = self.expected_backend_signer.ok_or_else(|| {
+            TxlineError::solana("safe purchase validation requires an expected backend signer")
+        })?;
+        Ok(LowLevelPurchaseTransactionSafetyConfig {
+            txline_program_id: self.txline_program_id,
+            expected_buyer: self.expected_buyer,
+            expected_txline_amount: self.expected_txline_amount,
+            expected_backend_signer: Some(expected_backend_signer),
+        })
+    }
+}
+
+impl LowLevelPurchaseTransactionSafetyConfig {
+    /// Build a Devnet low-level purchase safety config.
+    ///
+    /// This API intentionally permits `expected_backend_signer: None` for
+    /// compatibility with raw transaction inspection. When `None` is supplied,
+    /// verification does not bind the transaction to a backend signer identity.
+    /// Prefer [`PurchaseTransactionSafetyConfig::devnet`] for any path that may
+    /// sign or submit a purchase quote.
+    pub fn devnet_unchecked_backend_signer(
         config: &TxlineConfig,
         expected_buyer: Pubkey,
         expected_txline_amount: u64,
@@ -47,13 +107,50 @@ impl PurchaseTransactionSafetyConfig {
     }
 }
 
+impl ValidatedPurchaseQuote {
+    /// Validate a raw backend quote and retain the audited transaction bytes.
+    pub fn new(
+        quote: PurchaseQuoteResponse,
+        config: &PurchaseTransactionSafetyConfig,
+    ) -> Result<Self> {
+        quote.validate_financial_shape()?;
+        let transaction_bytes = quote.raw_transaction_bytes_unchecked()?;
+        let safety_report = verify_purchase_transaction_bytes(&transaction_bytes, config)?;
+        Ok(Self {
+            quote,
+            safety_report,
+            transaction_bytes,
+        })
+    }
+
+    /// Transaction bytes that passed SDK safety validation.
+    pub fn transaction_bytes(&self) -> &[u8] {
+        &self.transaction_bytes
+    }
+
+    /// Consume the checked quote and return the validated transaction bytes.
+    pub fn into_transaction_bytes(self) -> Vec<u8> {
+        self.transaction_bytes
+    }
+}
+
 impl PurchaseQuoteResponse {
+    pub fn validated_transaction_bytes(
+        &self,
+        config: &PurchaseTransactionSafetyConfig,
+    ) -> Result<Vec<u8>> {
+        self.validate_financial_shape()?;
+        let bytes = self.raw_transaction_bytes_unchecked()?;
+        verify_purchase_transaction_bytes(&bytes, config)?;
+        Ok(bytes)
+    }
+
     pub fn validate_transaction_safety(
         &self,
         config: &PurchaseTransactionSafetyConfig,
     ) -> Result<PurchaseTransactionSafetyReport> {
         self.validate_financial_shape()?;
-        let bytes = self.transaction_bytes()?;
+        let bytes = self.raw_transaction_bytes_unchecked()?;
         verify_purchase_transaction_bytes(&bytes, config)
     }
 }
@@ -74,9 +171,37 @@ pub fn verify_purchase_transaction_bytes(
     verify_purchase_transaction(&transaction, config)
 }
 
+/// Low-level verifier that permits unbound backend signer inspection.
+///
+/// If `config.expected_backend_signer` is `None`, this function cannot prove
+/// which backend signed the quote transaction. Safe signing or submission flows
+/// should use [`verify_purchase_transaction_bytes`] instead.
+pub fn verify_purchase_transaction_bytes_low_level_unchecked_backend_signer(
+    transaction_bytes: &[u8],
+    config: &LowLevelPurchaseTransactionSafetyConfig,
+) -> Result<PurchaseTransactionSafetyReport> {
+    let transaction = decode_versioned_transaction(transaction_bytes)?;
+    verify_purchase_transaction_low_level_unchecked_backend_signer(&transaction, config)
+}
+
 pub fn verify_purchase_transaction(
     transaction: &VersionedTransaction,
     config: &PurchaseTransactionSafetyConfig,
+) -> Result<PurchaseTransactionSafetyReport> {
+    verify_purchase_transaction_low_level_unchecked_backend_signer(
+        transaction,
+        &config.low_level_config()?,
+    )
+}
+
+/// Low-level verifier that permits unbound backend signer inspection.
+///
+/// If `config.expected_backend_signer` is `None`, this function cannot prove
+/// which backend signed the quote transaction. Safe signing or submission flows
+/// should use [`verify_purchase_transaction`] instead.
+pub fn verify_purchase_transaction_low_level_unchecked_backend_signer(
+    transaction: &VersionedTransaction,
+    config: &LowLevelPurchaseTransactionSafetyConfig,
 ) -> Result<PurchaseTransactionSafetyReport> {
     transaction
         .sanitize()
@@ -104,9 +229,9 @@ pub fn verify_purchase_transaction(
 
     let backend_signer_present = match config.expected_backend_signer {
         Some(backend) => signer_signature_present(transaction, &backend)?,
-        None => true,
+        None => false,
     };
-    if !backend_signer_present {
+    if !backend_signer_present && config.expected_backend_signer.is_some() {
         return Err(TxlineError::solana(
             "purchase transaction is missing the expected backend signer signature",
         ));
@@ -238,7 +363,7 @@ fn reject_unexpected_buyer_signer(
 
 fn verify_purchase_instruction_data(
     data: &[u8],
-    config: &PurchaseTransactionSafetyConfig,
+    config: &LowLevelPurchaseTransactionSafetyConfig,
 ) -> Result<()> {
     if data.len() != 16 {
         return Err(TxlineError::solana(format!(
@@ -266,7 +391,7 @@ fn verify_purchase_instruction_data(
 fn verify_purchase_instruction_accounts(
     account_keys: &[Pubkey],
     instruction_accounts: &[u8],
-    config: &PurchaseTransactionSafetyConfig,
+    config: &LowLevelPurchaseTransactionSafetyConfig,
 ) -> Result<()> {
     if instruction_accounts.len() != 14 {
         return Err(TxlineError::solana(format!(
@@ -353,6 +478,71 @@ mod tests {
     }
 
     #[test]
+    fn safe_validation_requires_expected_backend_signer() {
+        let buyer = Keypair::new();
+        let backend = Keypair::new();
+        let transaction = signed_purchase_transaction(&buyer, &backend, 1_000, Vec::new());
+        let mut config = safety_config(&buyer, &backend, 1_000);
+        config.expected_backend_signer = None;
+
+        let err = verify_purchase_transaction(&transaction, &config).unwrap_err();
+
+        assert!(
+            err.to_string()
+                .contains("requires an expected backend signer")
+        );
+    }
+
+    #[test]
+    fn low_level_unchecked_validation_can_inspect_without_backend_binding() {
+        let buyer = Keypair::new();
+        let backend = Keypair::new();
+        let transaction = signed_purchase_transaction(&buyer, &backend, 1_000, Vec::new());
+        let config = LowLevelPurchaseTransactionSafetyConfig {
+            txline_program_id: parse_pubkey(DEVNET_PROGRAM_ID).unwrap(),
+            expected_buyer: buyer.pubkey(),
+            expected_txline_amount: 1_000,
+            expected_backend_signer: None,
+        };
+
+        let report =
+            verify_purchase_transaction_low_level_unchecked_backend_signer(&transaction, &config)
+                .unwrap();
+
+        assert!(!report.backend_signer_present);
+        assert_eq!(report.txline_purchase_instruction_count, 1);
+    }
+
+    #[test]
+    fn validated_transaction_bytes_rejects_amount_mismatch() {
+        let buyer = Keypair::new();
+        let backend = Keypair::new();
+        let transaction = signed_purchase_transaction(&buyer, &backend, 999, Vec::new());
+        let quote = quote_response(&transaction);
+        let raw = quote.raw_transaction_bytes_unchecked().unwrap();
+        let config = safety_config(&buyer, &backend, 1_000);
+
+        let err = quote.validated_transaction_bytes(&config).unwrap_err();
+
+        assert!(err.to_string().contains("txline_amount"));
+        assert_eq!(raw, wincode::serialize(&transaction).unwrap());
+    }
+
+    #[test]
+    fn validated_transaction_bytes_rejects_backend_account_mismatch() {
+        let buyer = Keypair::new();
+        let backend = Keypair::new();
+        let expected_backend = Keypair::new();
+        let transaction = signed_purchase_transaction(&buyer, &backend, 1_000, Vec::new());
+        let quote = quote_response(&transaction);
+        let config = safety_config(&buyer, &expected_backend, 1_000);
+
+        let err = quote.validated_transaction_bytes(&config).unwrap_err();
+
+        assert!(err.to_string().contains("expected backend signer"));
+    }
+
+    #[test]
     fn rejects_unknown_program_invocation() {
         let buyer = Keypair::new();
         let backend = Keypair::new();
@@ -418,5 +608,14 @@ mod tests {
         let mut transaction = Transaction::new_with_payer(&instructions, Some(&buyer.pubkey()));
         transaction.sign(&[buyer, backend], blockhash);
         VersionedTransaction::from(transaction)
+    }
+
+    fn quote_response(transaction: &VersionedTransaction) -> PurchaseQuoteResponse {
+        PurchaseQuoteResponse {
+            transaction_base64: STANDARD.encode(wincode::serialize(transaction).unwrap()),
+            base_usdt_cost: 1.0,
+            fee_usdt_amount: 0.25,
+            total_usdt_charged: 1.25,
+        }
     }
 }

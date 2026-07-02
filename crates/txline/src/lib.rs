@@ -17,3 +17,4 @@ pub use auth::{ApiToken, AuthHeaders, GuestJwt, GuestSession, activation_preimag
 pub use client::TxlineClient;
 pub use config::{DEVNET_API_BASE, DEVNET_API_HOST, DEVNET_GUEST_AUTH_URL, Network, TxlineConfig};
 pub use error::{Result, TxlineError};
+pub use solana::transaction_safety::ValidatedPurchaseQuote;

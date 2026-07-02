@@ -1,5 +1,7 @@
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
+use serde::Deserialize;
+use serde::de::value::{Error as ValueError, SeqDeserializer};
 use serde_json::json;
 use txline::validation::{Hash32, ProofNode};
 
@@ -29,4 +31,30 @@ fn deserializes_array_hash_to_32_bytes() {
 fn rejects_wrong_length_hash() {
     let err = Hash32::from_bytes([1u8; 31]).unwrap_err();
     assert!(err.to_string().contains("expected 32 bytes"));
+}
+
+#[test]
+fn rejects_oversized_array_hash_after_thirty_two_bytes() {
+    let seq = SeqDeserializer::<_, ValueError>::new(PanicAfterThirtyThreeBytes { yielded: 0 });
+
+    let err = Hash32::deserialize(seq).unwrap_err();
+
+    assert!(err.to_string().contains("more than 32"));
+}
+
+struct PanicAfterThirtyThreeBytes {
+    yielded: usize,
+}
+
+impl Iterator for PanicAfterThirtyThreeBytes {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.yielded += 1;
+        assert!(
+            self.yielded <= 33,
+            "Hash32 deserializer read beyond the first oversized byte"
+        );
+        Some(7)
+    }
 }
