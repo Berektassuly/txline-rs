@@ -27,6 +27,7 @@ The crate currently includes:
 - REST clients for fixtures, odds, scores, validation, and purchase quotes.
 - SSE odds and scores streams with reconnect support, `Last-Event-ID`, and
   heartbeat filtering. SSE setup refreshes guest JWTs on `401` and `403`.
+- Typed soccer `PlayerStats` support on score records.
 - Legacy and V2 score stat-validation DTOs and conversion helpers.
 - Proof hash decoding from base64, hex, and byte arrays.
 - V2 strategy builders for single, binary, geometric, and distance predicates.

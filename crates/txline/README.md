@@ -15,6 +15,7 @@ Solana program addresses:
 - Guest JWT and activated API token handling.
 - REST clients for fixtures, odds, scores, validation, and purchase quotes.
 - SSE odds and scores streams with reconnect support and heartbeat filtering.
+- Typed soccer `PlayerStats` support on score records.
 - Legacy and V2 score stat-validation DTOs.
 - Devnet PDA and Token-2022 ATA helpers.
 - High-level Devnet setup flow for wallet, pricing matrix, subscribe, activation,

@@ -48,6 +48,9 @@ REST clients are exposed from `TxlineClient`:
 - `odds()`
 - `scores()`
 
+Score records preserve unknown fields in `extra` and expose soccer
+`PlayerStats` as typed participant/player maps when the feed includes it.
+
 Authenticated requests automatically retry once with a fresh guest JWT on HTTP
 401. REST `403` is left as an entitlement or authorization error. HTTP status
 errors preserve the status code and response body for programmatic inspection,
