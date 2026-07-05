@@ -7,6 +7,6 @@ pub mod scores;
 
 pub use models::{
     BatchMetadata, Fixture, FixtureBatchSummary, FixtureBatchValidation, FixtureValidation,
-    OddsBatchSummary, OddsPayload, OddsValidation, PurchaseQuoteRequest, PurchaseQuoteResponse,
-    Scores, UpdateStats,
+    OddsBatchSummary, OddsPayload, OddsValidation, PlayerStats, PlayerStatsForParticipants,
+    PurchaseQuoteRequest, PurchaseQuoteResponse, Scores, UpdateStats,
 };

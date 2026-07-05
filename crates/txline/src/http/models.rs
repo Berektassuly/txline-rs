@@ -87,6 +87,33 @@ pub struct OddsPayload {
     pub extra: ExtraFields,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PlayerStats {
+    #[serde(default)]
+    pub goals: Option<i32>,
+    #[serde(default)]
+    pub own_goals: Option<i32>,
+    #[serde(default)]
+    pub penalty_attempts: Option<i32>,
+    #[serde(default)]
+    pub penalty_goals: Option<i32>,
+    #[serde(default)]
+    pub red_cards: Option<i32>,
+    #[serde(default)]
+    pub shots: Option<i32>,
+    #[serde(default)]
+    pub yellow_cards: Option<i32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct PlayerStatsForParticipants {
+    #[serde(default, rename = "Participant1")]
+    pub participant1: BTreeMap<i64, PlayerStats>,
+    #[serde(default, rename = "Participant2")]
+    pub participant2: BTreeMap<i64, PlayerStats>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Scores {
@@ -122,6 +149,8 @@ pub struct Scores {
     pub possession: Option<i32>,
     #[serde(default)]
     pub stats: Option<BTreeMap<String, i32>>,
+    #[serde(default, rename = "PlayerStats")]
+    pub player_stats: Option<PlayerStatsForParticipants>,
     #[serde(default, flatten)]
     pub extra: ExtraFields,
 }
@@ -273,5 +302,48 @@ mod tests {
         assert_eq!(score.status_id, Some(FINAL_SETTLEMENT_STATUS_ID));
         assert_eq!(score.period, Some(FINAL_SETTLEMENT_PERIOD));
         assert!(score.is_final_outcome_record());
+    }
+
+    #[test]
+    fn scores_deserializes_soccer_player_stats() {
+        let score = serde_json::from_str::<Scores>(
+            r#"{
+                "fixtureId": 18188721,
+                "gameState": "inprogress",
+                "startTime": 1781129999999,
+                "isTeam": true,
+                "fixtureGroupId": 20,
+                "competitionId": 10,
+                "countryId": 1,
+                "sportId": 1,
+                "participant1IsHome": true,
+                "participant2Id": 40,
+                "participant1Id": 30,
+                "action": "goal",
+                "id": 99,
+                "ts": 1781130000000,
+                "connectionId": 77,
+                "seq": 941,
+                "PlayerStats": {
+                    "Participant1": {
+                        "1025737": { "goals": 1 }
+                    },
+                    "Participant2": {
+                        "10109797": { "yellowCards": 1, "redCards": 1 }
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let player_stats = score.player_stats.unwrap();
+        let participant1 = player_stats.participant1.get(&1_025_737).unwrap();
+        assert_eq!(participant1.goals, Some(1));
+        assert_eq!(participant1.yellow_cards, None);
+
+        let participant2 = player_stats.participant2.get(&10_109_797).unwrap();
+        assert_eq!(participant2.yellow_cards, Some(1));
+        assert_eq!(participant2.red_cards, Some(1));
+        assert_eq!(participant2.goals, None);
     }
 }
