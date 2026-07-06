@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	txline "github.com/Berektassuly/txline-rs/go/txline"
+	txline "github.com/Berektassuly/txline/go/txline"
 )
 
 func TestPublicImportPath(t *testing.T) {

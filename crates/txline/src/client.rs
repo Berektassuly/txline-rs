@@ -38,7 +38,7 @@ impl TxlineClient {
     pub fn new(config: TxlineConfig) -> Result<Self> {
         config.validate()?;
         let http = reqwest::Client::builder()
-            .user_agent(format!("txline-rs/{}", env!("CARGO_PKG_VERSION")))
+            .user_agent(format!("txline/{}", env!("CARGO_PKG_VERSION")))
             .build()?;
         Ok(Self {
             config,

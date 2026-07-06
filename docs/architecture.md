@@ -1,6 +1,6 @@
 # Architecture
 
-`txline-rs` is a Devnet-only SDK workspace. The Rust crate is the reference
+`txline` is a Devnet-only SDK workspace. The Rust crate is the reference
 implementation, and the Go, Python, and TypeScript packages mirror its safety
 model. The code is organized to keep hosted API access, Solana transaction
 construction, and validation payload preparation separate and reviewable.

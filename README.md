@@ -1,4 +1,4 @@
-# txline-rs
+# txline
 
 Devnet-only multi-language SDK workspace for TxLINE.
 
@@ -17,7 +17,7 @@ Devnet-only multi-language SDK workspace for TxLINE.
 
 ## Overview
 
-`txline-rs` provides SDKs for the current TxLINE Devnet APIs and Solana program
+`txline` provides SDKs for the current TxLINE Devnet APIs and Solana program
 addresses. The Rust crate remains the reference implementation, and the Go,
 Python, and TypeScript packages mirror the same Devnet-only guardrails,
 credential handling, validation checks, SSE behavior, and purchase quote safety

@@ -16,7 +16,7 @@ go vet ./...
 Import path:
 
 ```go
-import txline "github.com/Berektassuly/txline-rs/go/txline"
+import txline "github.com/Berektassuly/txline/go/txline"
 ```
 
 ## Quick Start

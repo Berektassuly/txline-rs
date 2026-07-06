@@ -7,7 +7,7 @@
   "types": "./dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Berektassuly/txline-rs.git",
+    "url": "git+https://github.com/Berektassuly/txline.git",
     "directory": "typescript"
   },
   "exports": {

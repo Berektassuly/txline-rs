@@ -1,6 +1,6 @@
 # Security Policy
 
-`txline-rs` is a Devnet-only SDK. Security issues are still important because
+`txline` is a Devnet-only SDK. Security issues are still important because
 the SDK packages handle credentials, wallet signatures, RPC endpoints, Solana
 transactions, and validation payloads.
 

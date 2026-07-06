@@ -1,6 +1,6 @@
-# Contributing to txline-rs
+# Contributing to txline
 
-Thanks for helping improve `txline-rs`. This project is review-driven and now
+Thanks for helping improve `txline`. This project is review-driven and now
 contains Rust, Go, Python, and TypeScript SDK packages, so the best
 contributions are focused, well-tested, and explicit about Devnet assumptions.
 

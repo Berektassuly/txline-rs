@@ -54,7 +54,7 @@ Use these values when adding the GitHub publisher on PyPI:
 | --- | --- |
 | PyPI project name | `txline` |
 | Owner | `Berektassuly` |
-| Repository name | `txline-rs` |
+| Repository name | `txline` |
 | Workflow filename | `release.yml` |
 | Environment name | `release` |
 
@@ -74,7 +74,7 @@ Use these values on the crate trusted publisher settings page:
 | --- | --- |
 | Crate | `txline` |
 | Owner | `Berektassuly` |
-| Repository name | `txline-rs` |
+| Repository name | `txline` |
 | Workflow filename | `release.yml` |
 | Environment name | `release` |
 
@@ -97,7 +97,7 @@ Use these values when configuring the trusted publisher for the package:
 | --- | --- |
 | Package | `txline` |
 | Owner | `Berektassuly` |
-| Repository name | `txline-rs` |
+| Repository name | `txline` |
 | Workflow filename | `release.yml` |
 | Environment name | `release` |
 | Allowed actions | `npm publish` |
@@ -109,7 +109,7 @@ workflow publishes with OIDC and no long-lived npm token.
 
 ## Go Module
 
-Package path: `github.com/Berektassuly/txline-rs/go`
+Package path: `github.com/Berektassuly/txline/go`
 
 Go modules do not use a registry publish API. Publishing is a Git tag operation.
 Because the module root is the `go/` subdirectory, release tags must use the

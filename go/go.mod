@@ -1,4 +1,4 @@
-module github.com/Berektassuly/txline-rs/go
+module github.com/Berektassuly/txline/go
 
 go 1.26
 

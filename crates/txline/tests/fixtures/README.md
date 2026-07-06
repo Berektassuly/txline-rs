@@ -47,7 +47,7 @@ TypeScript package name, but it is not used by this PR #3 fixture source.
 
 ## Verify
 
-Run from the `txline-rs` repository root:
+Run from the `txline` repository root:
 
 ```powershell
 $env:TX_ON_CHAIN_ROOT = "<path-to-local-tx-on-chain-checkout>"

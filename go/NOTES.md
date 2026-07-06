@@ -5,7 +5,7 @@
 The module path is:
 
 ```text
-github.com/Berektassuly/txline-rs/go
+github.com/Berektassuly/txline/go
 ```
 
 This follows the current repository remote/name and keeps the Go SDK as a top-level module without renaming the repository or moving the Rust SDK.

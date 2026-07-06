@@ -2,7 +2,7 @@
 
 Devnet-only Rust SDK for TxLINE.
 
-This crate is the Rust package in the `txline-rs` multi-language SDK workspace.
+This crate is the Rust package in the `txline` multi-language SDK workspace.
 
 > This crate intentionally supports TxLINE Devnet only. Mainnet constants,
 > feature flags, examples, and transaction flows are out of scope for this SDK
@@ -90,7 +90,7 @@ The Devnet V2 score examples include Rust counterparts for the upstream PR #3
 
 ## Documentation
 
-- Repository: <https://github.com/Berektassuly/txline-rs>
+- Repository: <https://github.com/Berektassuly/txline>
 - API docs: <https://docs.rs/txline>
 - TxLINE docs: <https://txline.txodds.com/documentation/quickstart>
 - Devnet IDL docs: <https://github.com/txodds/tx-on-chain/blob/main/documentation/programs/devnet.mdx>
