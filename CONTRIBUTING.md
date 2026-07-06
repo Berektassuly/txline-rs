@@ -127,6 +127,7 @@ Update documentation with behavior changes. The main entry points are:
 - `docs/devnet-first.md` for network assumptions,
 - `docs/security.md` for security boundaries,
 - `docs/validation.md` for proof and settlement payload behavior.
+- `docs/releasing.md` for release workflow and trusted publisher setup.
 - `crates/txline/README.md`, `go/README.md`, `python/README.md`, and
   `typescript/README.md` for language-specific usage.
 

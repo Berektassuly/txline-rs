@@ -1,0 +1,334 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_publish:
+        description: Set to yes to publish selected packages.
+        required: true
+        type: choice
+        default: "no"
+        options:
+          - "no"
+          - "yes"
+      rust_version:
+        description: crates.io txline version to publish. Leave blank to skip.
+        required: false
+        type: string
+      python_version:
+        description: PyPI txline version to publish. Leave blank to skip.
+        required: false
+        type: string
+      npm_version:
+        description: npm txline-sdk version to publish. Leave blank to skip.
+        required: false
+        type: string
+      go_version:
+        description: Go module version to tag, without the go/ prefix. Leave blank to skip.
+        required: false
+        type: string
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  guard:
+    name: Check release request
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.plan.outputs.rust }}
+      python: ${{ steps.plan.outputs.python }}
+      npm: ${{ steps.plan.outputs.npm }}
+      go: ${{ steps.plan.outputs.go }}
+
+    steps:
+      - name: Validate inputs
+        id: plan
+        env:
+          CONFIRM_PUBLISH: ${{ inputs.confirm_publish }}
+          REF_NAME: ${{ github.ref_name }}
+          RUST_VERSION: ${{ inputs.rust_version }}
+          PYTHON_VERSION: ${{ inputs.python_version }}
+          NPM_VERSION: ${{ inputs.npm_version }}
+          GO_VERSION: ${{ inputs.go_version }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${CONFIRM_PUBLISH}" != "yes" ]]; then
+            echo "Set confirm_publish to yes before running a release." >&2
+            exit 1
+          fi
+
+          if [[ "${REF_NAME}" != "main" ]]; then
+            echo "Run releases from main, not ${REF_NAME}." >&2
+            exit 1
+          fi
+
+          if [[ -z "${RUST_VERSION}${PYTHON_VERSION}${NPM_VERSION}${GO_VERSION}" ]]; then
+            echo "Provide at least one package version input." >&2
+            exit 1
+          fi
+
+          if [[ -n "${RUST_VERSION}" ]]; then
+            echo "rust=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "rust=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+          if [[ -n "${PYTHON_VERSION}" ]]; then
+            echo "python=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "python=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+          if [[ -n "${NPM_VERSION}" ]]; then
+            echo "npm=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "npm=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+          if [[ -n "${GO_VERSION}" ]]; then
+            echo "go=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "go=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  rust:
+    name: Publish Rust crate
+    needs: guard
+    if: needs.guard.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy --component rustfmt
+          rustup default stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/git
+            ~/.cargo/registry
+            target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-
+
+      - name: Validate crate version
+        env:
+          EXPECTED_VERSION: ${{ inputs.rust_version }}
+        run: |
+          set -euo pipefail
+          actual="$(
+            cargo metadata --format-version 1 --no-deps \
+              | python3 -c 'import json, sys; data = json.load(sys.stdin); print(next(pkg["version"] for pkg in data["packages"] if pkg["name"] == "txline"))'
+          )"
+          if [[ "${actual}" != "${EXPECTED_VERSION}" ]]; then
+            echo "crates/txline version is ${actual}, expected ${EXPECTED_VERSION}." >&2
+            exit 1
+          fi
+
+      - name: Test
+        run: cargo test -p txline --all-features
+
+      - name: Package dry run
+        run: cargo publish -p txline --dry-run
+
+      - name: Authenticate with crates.io
+        id: crates-auth
+        uses: rust-lang/crates-io-auth-action@v1
+
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-auth.outputs.token }}
+        run: cargo publish -p txline
+
+  python:
+    name: Publish Python package
+    needs: guard
+    if: needs.guard.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: python
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package
+        run: python -m pip install -e ".[dev]"
+
+      - name: Validate package version
+        env:
+          EXPECTED_VERSION: ${{ inputs.python_version }}
+        run: |
+          set -euo pipefail
+          actual="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          if [[ "${actual}" != "${EXPECTED_VERSION}" ]]; then
+            echo "python package version is ${actual}, expected ${EXPECTED_VERSION}." >&2
+            exit 1
+          fi
+
+      - name: Test
+        run: python -m pytest
+
+      - name: Ruff
+        run: python -m ruff check .
+
+      - name: Format
+        run: python -m ruff format --check .
+
+      - name: Mypy
+        run: python -m mypy src
+
+      - name: Build package
+        run: |
+          rm -rf dist
+          python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python/dist
+
+  npm:
+    name: Publish npm package
+    needs: guard
+    if: needs.guard.outputs.npm == 'true'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: typescript
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+
+      - name: Install npm with trusted publishing support
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate package version
+        env:
+          EXPECTED_VERSION: ${{ inputs.npm_version }}
+        run: |
+          set -euo pipefail
+          actual="$(node -e "const fs = require('node:fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); console.log(pkg.version)")"
+          if [[ "${actual}" != "${EXPECTED_VERSION}" ]]; then
+            echo "typescript package version is ${actual}, expected ${EXPECTED_VERSION}." >&2
+            exit 1
+          fi
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Package dry run
+        run: npm pack --dry-run
+
+      - name: Publish to npm
+        run: npm publish --access public
+
+  go:
+    name: Tag Go module
+    needs: guard
+    if: needs.guard.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: go
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache-dependency-path: go/go.sum
+
+      - name: Prepare release tag
+        id: tag
+        env:
+          GO_VERSION: ${{ inputs.go_version }}
+        run: |
+          set -euo pipefail
+          version="${GO_VERSION#v}"
+          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Go version must be a semantic version like 0.1.0 or v0.1.0." >&2
+            exit 1
+          fi
+
+          tag="go/v${version}"
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            echo "Tag ${tag} already exists." >&2
+            exit 1
+          fi
+
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+
+      - name: Test
+        run: go test ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Push Go module tag
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${TAG}" -m "Release ${TAG}"
+          git push origin "${TAG}"

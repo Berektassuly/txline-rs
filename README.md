@@ -7,6 +7,7 @@ Devnet-only multi-language SDK workspace for TxLINE.
 [Validation](docs/validation.md) |
 [Devnet IDL coverage](docs/devnet-idl-coverage.md) |
 [Security](SECURITY.md) |
+[Releasing](docs/releasing.md) |
 [Contributing](CONTRIBUTING.md)
 
 > [!IMPORTANT]
@@ -201,6 +202,8 @@ snapshot, update endpoint, historical score query, or the scores stream.
   admin-only, and intentionally unsupported instructions.
 - [Security](docs/security.md): secrets, wallet signatures, purchase quotes, and
   stream behavior.
+- [Releasing](docs/releasing.md): trusted publishing setup and release workflow
+  instructions.
 - [Security policy](SECURITY.md): how to report vulnerabilities.
 - [Contributing](CONTRIBUTING.md): local workflow and review expectations.
 
