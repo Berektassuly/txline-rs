@@ -36,7 +36,7 @@ class TxlineClient:
         self.config = config or TxlineConfig.devnet()
         self.config.validate()
         self._http = http_client or httpx.Client(
-            headers={"User-Agent": "txline-python/0.1.0"}, timeout=30.0
+            headers={"User-Agent": "txline-python/0.3.5"}, timeout=30.0
         )
         self._owns_http = http_client is None
         self._tokens = _TokenState()
@@ -228,7 +228,7 @@ class AsyncTxlineClient:
         self.config = config or TxlineConfig.devnet()
         self.config.validate()
         self._http = http_client or httpx.AsyncClient(
-            headers={"User-Agent": "txline-python/0.1.0"}, timeout=30.0
+            headers={"User-Agent": "txline-python/0.3.5"}, timeout=30.0
         )
         self._owns_http = http_client is None
         self._tokens = _TokenState()
