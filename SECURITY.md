@@ -1,13 +1,13 @@
 # Security Policy
 
 `txline-rs` is a Devnet-only SDK. Security issues are still important because
-the crate handles credentials, wallet signatures, RPC endpoints, Solana
+the SDK packages handle credentials, wallet signatures, RPC endpoints, Solana
 transactions, and validation payloads.
 
 ## Supported Scope
 
 The current supported scope is the repository's default branch and the
-Devnet-only crate configuration.
+Devnet-only Rust, Go, Python, and TypeScript SDK packages.
 
 Mainnet behavior is not supported by this SDK version.
 
@@ -34,9 +34,9 @@ wallet signatures in the report body.
 
 Treat changes in these areas as security-sensitive:
 
-- `auth` and credential redaction,
+- `auth` and credential redaction in every package,
 - activation preimage construction,
-- `with_rpc_url()` and network guardrails,
+- RPC override helpers and network guardrails,
 - Solana transaction construction and quote handling,
 - proof decoding and V2 stat-validation payload conversion,
 - SSE reconnect and typed event parsing.

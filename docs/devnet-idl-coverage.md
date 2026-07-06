@@ -1,6 +1,6 @@
 # Devnet IDL Coverage
 
-This SDK is Devnet-only. Devnet IDL data comes from upstream
+These SDKs are Devnet-only. Devnet IDL data comes from upstream
 merged PR #3 source commit `432b740831c1235ea706784902678381afd241c6`,
 specifically `examples/devnet/idl/txoracle.json`. That file identifies Devnet
 program `6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J`, IDL version `1.5.5`,
@@ -9,15 +9,19 @@ and the `validate_stat_v2` instruction.
 Do not use the upstream top-level `idl/txoracle.json` as the Devnet SDK source.
 It currently points at MainNet program
 `9ExbZjAapQww1vfcisDmrngPinHTEfpjYRWMunJgcKaA` version `1.5.5`. MainNet
-constants and flows remain intentionally out of scope for this SDK version.
+constants and flows remain intentionally out of scope for this repository
+version.
 
-The machine-readable source is `txline::solana::idl::DEVNET_INSTRUCTION_COVERAGE`.
+The Rust machine-readable source is
+`txline::solana::idl::DEVNET_INSTRUCTION_COVERAGE`. Go, Python, and TypeScript
+mirror the implemented public builders with golden tests against the same
+checked-in fixtures.
 
-The public TxODDS trading flows listed as implemented below are low-level Rust
+The public TxODDS trading flows listed as implemented below are low-level
 instruction builders. They require callers to pass every trading account
 explicitly and do not derive unverified PDAs, manage a market lifecycle, sign
 transactions, or send transactions. Automatic PDA derivation remains limited to
-helpers whose seeds have already been verified in this SDK.
+helpers whose seeds have already been verified in these SDKs.
 
 | Instruction | Status | Notes |
 | --- | --- | --- |

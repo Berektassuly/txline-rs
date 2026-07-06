@@ -1,11 +1,12 @@
 # Devnet First
 
-The crate supports TxLINE Devnet only in this implementation phase.
+All SDK packages in this repository support TxLINE Devnet only in this
+implementation phase.
 
 ## IDL Source
 
 Use the merged upstream PR #3 source commit as the active Devnet IDL source for
-this SDK: `432b740831c1235ea706784902678381afd241c6`. The source file is
+these SDKs: `432b740831c1235ea706784902678381afd241c6`. The source file is
 `examples/devnet/idl/txoracle.json`; it identifies Devnet program
 `6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J`, IDL version `1.5.5`, and the
 additional `validate_stat_v2` instruction.
@@ -14,7 +15,7 @@ Do not use the top-level upstream `idl/txoracle.json` as the Devnet SDK source.
 It currently points at MainNet address
 `9ExbZjAapQww1vfcisDmrngPinHTEfpjYRWMunJgcKaA` and IDL version `1.5.5`. MainNet
 constants, feature flags, examples, and transaction flows remain out of scope
-for this SDK version.
+for this repository version.
 
 ## Canonical Values
 
@@ -29,12 +30,12 @@ for this SDK version.
 
 ## Guardrails
 
-- `Network` has only `Devnet`.
+- Network config has only `Devnet` or language-native equivalent.
 - There is no `mainnet` feature.
 - Config validation rejects mixed non-RPC values.
 - Empty RPC URLs are rejected.
 - Obvious mainnet-looking RPC URLs are rejected.
-- Program ID and mints stay fixed when `with_rpc_url()` is used.
+- Program ID and mints stay fixed when custom RPC override helpers are used.
 - Examples require explicit Devnet environment variables and contain no
   secrets.
 - `seq` is rejected when it is zero or negative before validation requests are
@@ -43,9 +44,9 @@ for this SDK version.
 
 ## Custom RPC URLs
 
-`with_rpc_url()` exists for custom Devnet RPC providers. A syntactic check can
-catch accidental URLs containing clear mainnet markers, but it cannot prove that
-an arbitrary provider is actually connected to Devnet.
+Custom RPC override helpers exist for Devnet RPC providers. A syntactic check
+can catch accidental URLs containing clear mainnet markers, but it cannot prove
+that an arbitrary provider is actually connected to Devnet.
 
 Callers must provide a Devnet RPC endpoint whenever overriding the default RPC.
 A future live genesis or version check could be added as an explicit opt-in
