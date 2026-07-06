@@ -1,8 +1,9 @@
 # Architecture
 
-`txline-rs` is a Devnet-only SDK. The code is organized to keep hosted API
-access, Solana transaction construction, and validation payload preparation
-separate and reviewable.
+`txline-rs` is a Devnet-only SDK workspace. The Rust crate is the reference
+implementation, and the Go, Python, and TypeScript packages mirror its safety
+model. The code is organized to keep hosted API access, Solana transaction
+construction, and validation payload preparation separate and reviewable.
 
 ## Design Principles
 
@@ -15,12 +16,15 @@ separate and reviewable.
 
 ## Layers
 
+These layers exist in language-native form across the SDK packages. Rust module
+names are shown as the reference vocabulary.
+
 | Layer | Modules | Responsibility |
 | --- | --- | --- |
 | Configuration | `config` | Canonical Devnet hosts, mints, program ID, and RPC override validation. |
 | Credentials | `auth`, `client` | Guest JWTs, API tokens, activation preimages, and redacted headers. |
 | Data access | `http` | Fixtures, odds, scores, purchase quotes, and validation endpoints. |
-| Streams | `stream` | SSE parsing, heartbeat filtering, reconnects, `Last-Event-ID`, and stream-specific JWT refresh on `401`/`403`. |
+| Streams | `stream` | SSE parsing, heartbeat filtering, reconnects, `Last-Event-ID`, API-token requirement, and stream-specific JWT refresh on `401`/`403`. |
 | Solana | `solana` | Devnet PDAs, Token-2022 ATA derivation/creation, setup, subscription, purchase, faucet, validation, low-level trading instruction builders, and coverage helpers. |
 | Validation | `validation` | Proof decoding, Anchor-compatible stat-validation DTOs, payload conversion, and strategies. |
 
@@ -60,6 +64,7 @@ while formatted error output redacts the response body.
 
 Odds and scores streams use Server-Sent Events. The typed stream wrapper:
 
+- requires both a guest JWT and activated API token,
 - preserves `Last-Event-ID`,
 - applies server-provided `retry` backoff hints,
 - filters `event: heartbeat` before JSON deserialization,
@@ -100,15 +105,24 @@ quote's financial shape is checked, verify the fee payer and required expected
 backend signer, limit invoked programs to the known purchase allowlist, require
 exactly one `purchase_subscription_token_usdt` instruction, discriminator-match
 the instruction, verify the requested TXLINE amount, and check the expected
-Devnet account layout. `TxlineClient::purchase_quote_checked` performs this
-validation before returning a `ValidatedPurchaseQuote` with transaction bytes.
+Devnet account layout. The checked purchase quote helper in each package
+performs this validation before returning validated transaction bytes.
 Raw quote transaction bytes remain available only as a low-level inspection
 helper; signing flows should use the checked client method or validated
 accessor.
 
+## Workspace Packages
+
+| Package | Path | Notes |
+| --- | --- | --- |
+| Rust | `crates/txline` | Reference implementation and golden fixture source. |
+| Go | `go` | Backend-friendly module with context-aware REST/SSE methods. |
+| Python | `python` | Sync and async clients plus small Solana primitives. |
+| TypeScript | `typescript` | ESM TypeScript package usable from JavaScript. |
+
 ## Public Surface
 
-The crate exports a small top-level API:
+The Rust crate exports a small top-level API:
 
 - `TxlineClient`
 - `TxlineConfig`
@@ -122,15 +136,16 @@ The crate exports a small top-level API:
 - `Result`
 - `TxlineError`
 
-Internal modules stay public for the current SDK review phase, but new public
-APIs should remain narrow and covered by tests.
+Other packages expose language-native equivalents of the same concepts. New
+public APIs should remain narrow and covered by tests in the package that owns
+them.
 
 Devnet IDL coverage is tracked in `txline::solana::idl` and summarized in
 [`docs/devnet-idl-coverage.md`](devnet-idl-coverage.md).
 
 ## Out of Scope
 
-- Mainnet constants or feature flags.
+- Mainnet transaction flows or feature flags.
 - Mainnet RPC support.
 - Secret storage or wallet key management.
 - Admin/root insertion/update flows in casual examples.

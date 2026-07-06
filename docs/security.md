@@ -5,17 +5,17 @@ This document describes the SDK security boundaries. Use
 
 ## Secrets
 
-The SDK accepts caller-provided guest JWTs, activated API tokens, wallet
-signatures, and Solana signers. It does not manage private keys, seed phrases,
+The SDK packages accept caller-provided guest JWTs, activated API tokens, wallet
+signatures, and Solana signers. They do not manage private keys, seed phrases,
 or durable secret storage.
 
-`GuestJwt`, `ApiToken`, and `AuthHeaders` redact their `Debug` output. Do not
-log raw `HeaderMap` values, request bodies, private keys, seed phrases, detached
-wallet signatures, or complete tokens.
+Credential wrapper names vary by language, but `GuestJwt`/`GuestJWT`,
+`ApiToken`/`APIToken`, and `AuthHeaders` redact formatted/debug output. Do not
+log raw headers, request bodies, private keys, seed phrases, detached wallet
+signatures, or complete tokens.
 
-`GuestJwt::new` and `ApiToken::new` trim leading and trailing whitespace and
-reject empty or whitespace-only values before those credentials can be placed in
-headers.
+Credential constructors trim leading and trailing whitespace and reject empty or
+whitespace-only values before those credentials can be placed in headers.
 
 ## Activation
 
@@ -40,9 +40,9 @@ network, and subscription transaction they intend to activate.
 
 ## RPC Endpoints
 
-`TxlineConfig::devnet().with_rpc_url(...)` keeps the TxLINE program ID and mints
-fixed to Devnet. Validation rejects empty and obvious mainnet-looking RPC URLs,
-but caller-provided custom RPC endpoints still need operator review.
+Devnet config builders keep the TxLINE program ID and mints fixed to Devnet.
+Validation rejects empty and obvious mainnet-looking RPC URLs, but
+caller-provided custom RPC endpoints still need operator review.
 
 Before using a custom provider, verify that it is connected to Solana Devnet and
 that it is acceptable for the data, rate limits, and availability assumptions of
@@ -55,12 +55,11 @@ The SDK can request a Devnet purchase quote, decode the returned transaction
 bytes, check the financial shape, and audit the transaction before the caller
 signs it.
 
-Use `TxlineClient::purchase_quote_checked` for signing or submission flows. It
-fetches the quote, requires the expected backend signer, validates the returned
-transaction, and only then exposes transaction bytes. If you already have a raw
-quote response, call `PurchaseQuoteResponse::validated_transaction_bytes` before
-signing or submitting it. `raw_transaction_bytes_unchecked` is a low-level
-diagnostic accessor and does not perform safety validation.
+Use the checked purchase quote helper in your language package for signing or
+submission flows. It fetches the quote, requires the expected backend signer,
+validates the returned transaction, and only then exposes transaction bytes. Raw
+or unchecked quote transaction accessors are diagnostics only and do not perform
+safety validation.
 
 The safety checker verifies:
 
@@ -94,9 +93,8 @@ REST requests refresh only on HTTP 401. REST 403 can mean entitlement failure,
 an inactive API token, or a network mismatch, so the SDK does not silently
 reinterpret it as an expired guest JWT.
 
-Cloned `TxlineClient` values share token state and a refresh lock so concurrent
-requests coalesce guest JWT refreshes. Separate users should use separate
-`TxlineClient` instances.
+Client instances that support cloning or sharing coalesce guest JWT refreshes.
+Separate users should use separate client instances.
 
 ## Live Credentials
 

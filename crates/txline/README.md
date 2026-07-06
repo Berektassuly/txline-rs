@@ -2,6 +2,8 @@
 
 Devnet-only Rust SDK for TxLINE.
 
+This crate is the Rust package in the `txline-rs` multi-language SDK workspace.
+
 > This crate intentionally supports TxLINE Devnet only. Mainnet constants,
 > feature flags, examples, and transaction flows are out of scope for this SDK
 > version.

@@ -1,12 +1,12 @@
 # Contributing to txline-rs
 
-Thanks for helping improve `txline-rs`. This project is intentionally small and
-review-driven, so the best contributions are focused, well-tested, and explicit
-about Devnet assumptions.
+Thanks for helping improve `txline-rs`. This project is review-driven and now
+contains Rust, Go, Python, and TypeScript SDK packages, so the best
+contributions are focused, well-tested, and explicit about Devnet assumptions.
 
 ## Project Scope
 
-The SDK currently supports TxLINE Devnet only.
+Every SDK package currently supports TxLINE Devnet only.
 
 Do not add mainnet constants, feature flags, transaction flows, or examples
 unless the project scope changes first. Devnet program IDs, mints, activation
@@ -36,7 +36,7 @@ and safer for SDK users.
 
 ## Development Setup
 
-Install the Rust toolchain declared by the workspace:
+Install the toolchains for the packages you touch. Rust changes require:
 
 ```bash
 rustup toolchain install stable
@@ -52,10 +52,41 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test
 ```
 
-Run the full set before asking for review when code changes are involved.
+Go changes:
 
-CI runs these checks on pull requests and pushes to `main`. It also runs an MSRV
-`cargo check` against the Rust version declared by the workspace.
+```bash
+cd go
+go test ./...
+go vet ./...
+```
+
+Python changes:
+
+```bash
+cd python
+python -m pip install -e ".[dev]"
+python -m pytest
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy src
+python -m build
+```
+
+TypeScript changes:
+
+```bash
+cd typescript
+npm ci
+npm run typecheck
+npm test
+npm run build
+```
+
+Run the full set for every affected package before asking for review.
+
+CI runs Rust, Go, Python, and TypeScript checks on pull requests and pushes to
+`main`. It also runs an MSRV `cargo check` against the Rust version declared by
+the workspace.
 
 ## Live Devnet Work
 
@@ -80,7 +111,7 @@ When opening a PR, include:
 - what changed,
 - why the change is needed,
 - tests run,
-- whether strict Clippy passed,
+- which package checks passed,
 - whether live Devnet validation was run or skipped,
 - any remaining risks or follow-up work.
 
@@ -96,6 +127,9 @@ Update documentation with behavior changes. The main entry points are:
 - `docs/devnet-first.md` for network assumptions,
 - `docs/security.md` for security boundaries,
 - `docs/validation.md` for proof and settlement payload behavior.
+- `docs/releasing.md` for release workflow and trusted publisher setup.
+- `crates/txline/README.md`, `go/README.md`, `python/README.md`, and
+  `typescript/README.md` for language-specific usage.
 
 ## AI-Assisted Contributions
 
