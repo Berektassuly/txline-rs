@@ -23,7 +23,7 @@ Leave a package version input blank to skip that package.
 | --- | --- | --- |
 | `rust_version` | `txline` on crates.io | `crates/txline/Cargo.toml` |
 | `python_version` | `txline` on PyPI | `python/pyproject.toml` |
-| `npm_version` | `txline-sdk` on npm | `typescript/package.json` |
+| `npm_version` | `txline` on npm | `typescript/package.json` |
 | `go_version` | Go module tag `go/vX.Y.Z` | workflow input |
 
 The workflow validates that requested registry versions match checked-in package
@@ -85,7 +85,7 @@ crates.io token, and runs `cargo publish -p txline`.
 
 ## npm
 
-Package: `txline-sdk`
+Package: `txline`
 
 The package metadata includes the GitHub repository URL required by npm trusted
 publishing. npm trusted publishing requires Node `22.14.0` or newer and npm
@@ -95,7 +95,7 @@ Use these values when configuring the trusted publisher for the package:
 
 | Field | Value |
 | --- | --- |
-| Package | `txline-sdk` |
+| Package | `txline` |
 | Owner | `Berektassuly` |
 | Repository name | `txline-rs` |
 | Workflow filename | `release.yml` |
@@ -128,7 +128,7 @@ then creates and pushes the annotated tag.
 2. Create the GitHub `release` environment.
 3. Add the PyPI pending trusted publisher for `txline`.
 4. Add the crates.io trusted publisher for `txline`.
-5. Configure npm trusted publishing for `txline-sdk`, or do the npm bootstrap
+5. Configure npm trusted publishing for `txline`, or do the npm bootstrap
    publish if the package page must exist first.
 6. Open `Actions -> Release -> Run workflow` from `main`.
 7. Set `confirm_publish` to `yes`.

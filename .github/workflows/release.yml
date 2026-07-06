@@ -20,7 +20,7 @@ on:
         required: false
         type: string
       npm_version:
-        description: npm txline-sdk version to publish. Leave blank to skip.
+        description: npm txline version to publish. Leave blank to skip.
         required: false
         type: string
       go_version:

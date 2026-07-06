@@ -1,5 +1,5 @@
 {
-  "name": "txline-sdk",
+  "name": "txline",
   "version": "0.1.0",
   "description": "TypeScript/JavaScript SDK for TxLINE Devnet REST, SSE, validation, and Solana instruction builders",
   "type": "module",
