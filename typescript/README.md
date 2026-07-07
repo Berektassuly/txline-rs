@@ -79,6 +79,71 @@ for await (const event of client.scoresStream().stream({
 
 The SSE client parses event blocks, filters `heartbeat`, preserves `Last-Event-ID`, respects server `retry:` hints, reconnects after interruptions, requires an activated API token, and refreshes guest JWTs on stream `401`/`403`.
 
+## World Cup Trading Lifecycle
+
+The SDK includes Devnet-only helpers for World Cup hackathon projects that need to connect TxLINE scores to score-settled trading or prediction-market flows. The helpers compose published REST, SSE, validation, and public Devnet IDL builders. They do not add unpublished trading REST endpoints, derive unverified trading PDAs, sign transactions, submit transactions, or compute a production terms-hash preimage.
+
+Useful source links:
+
+- [World Cup hackathon](https://superteam.fun/earn/hackathon/world-cup/)
+- [On-chain validation guide](https://txline.txodds.com/documentation/examples/onchain-validation)
+- [Streaming data guide](https://txline.txodds.com/documentation/examples/streaming-data)
+- [Devnet IDL JSON](https://github.com/txodds/tx-on-chain/blob/main/examples/devnet/idl/txoracle.json)
+
+Lifecycle outline:
+
+1. Subscribe on Devnet and activate API access using `startGuestSession`, `subscribeInstruction`, `activationPreimage`, and `activateSubscription`, or inject caller-provided guest JWT and API token with `setGuestJwt` and `setApiToken`.
+2. Define score-market terms with helpers such as `finalOutcomeMarketTerms`, `totalGoalsMarketTerms`, or `spreadMarketTerms`.
+3. Pass an explicit 32-byte caller-owned terms hash to `createIntentPlan`, `createTradePlan`, or `claimBatchLegacyPlan`. The public Devnet IDL requires `[u8; 32]`, but the canonical production preimage is not published.
+4. Observe live odds and scores through `oddsStream()` and `scoresStream()`, or fetch historical score records with `client.scores().historicalByFixture(fixtureId)`.
+5. Detect final soccer outcomes with `isFinalOutcomeRecord` and `extractFinalOutcome`. The documented final-outcome record shape is `action=game_finalised`, `statusId=100`, and `period=100`; soccer defaults use stat key `1` for participant 1 goals and stat key `2` for participant 2 goals.
+6. Fetch V2 proof payloads with `client.scores().statValidationV2({ fixtureId, seq, statKeys })`, then build validation inputs and strategies with `finalOutcomeProof`, `finalOutcomeStrategy`, `validationInputForMarket`, or `marketTermsStrategy`.
+7. Build the on-chain instruction you need with `finalOutcomeValidationPlan`, `settleTradePlan`, `settleMatchedTradePlan`, `claimViaResolutionPlan`, `claimBatchLegacyPlan`, `refundBatchPlan`, or `auditTradeResultPlan`.
+
+```ts
+import {
+  TxlineClient,
+  defaultSoccerFinalOutcomeConfig,
+  devnetConfig,
+  extractFinalOutcome,
+  finalOutcomeProof,
+  finalOutcomeStatKeys,
+  isFinalOutcomeRecord,
+  validateStatV2Instruction,
+} from "@beriktassuly/txline";
+
+const client = new TxlineClient({ config: devnetConfig() });
+client.setGuestJwt("caller-provided-guest-jwt");
+client.setApiToken("caller-provided-api-token");
+
+const fixtureId = 17_952_170;
+const scores = await client.scores().historicalByFixture(fixtureId);
+const finalScore = scores.find(isFinalOutcomeRecord);
+if (!finalScore) throw new Error("final outcome not found");
+
+const outcome = extractFinalOutcome(
+  finalScore,
+  defaultSoccerFinalOutcomeConfig(),
+);
+
+const validation = await client.scores().statValidationV2({
+  fixtureId: outcome.fixtureId,
+  seq: outcome.seq,
+  statKeys: finalOutcomeStatKeys(outcome.config),
+});
+
+const proof = finalOutcomeProof(outcome, validation);
+const dailyScoresRoot = "caller-provided-daily-scores-root";
+const ix = validateStatV2Instruction(
+  devnetConfig().programId,
+  dailyScoresRoot,
+  proof.payload,
+  proof.strategy,
+);
+```
+
+`dailyScoresRoot` is the Devnet daily scores root account for the proof timestamp. Applications may derive it with `DevnetPdas` or use `devnetFinalOutcomeValidationPlan` to derive it inside the SDK. Trading plans still require caller-supplied intent, escrow, vault, token, winner, resolver, and signer accounts from the coordinating application or backend.
+
 ## Validation
 
 ```ts

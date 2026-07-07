@@ -121,6 +121,126 @@ ix, err := txline.PurchaseSubscriptionTokenUSDTInstruction(
 
 The SDK includes PDA helpers, Token-2022 ATA derivation, Token-2022 ATA creation, subscription/faucet/purchase builders, validation builders, and conservative low-level trading builders where callers supply explicit accounts.
 
+## World Cup Trading Lifecycle
+
+The Go SDK includes a Devnet-only lifecycle layer for World Cup-style score markets. It is intentionally SDK-side orchestration over documented TxLINE data APIs and public Devnet IDL builders; it does not create unpublished trading REST clients or derive trading PDAs whose seeds are not published.
+
+Useful references:
+
+- World Cup hackathon: <https://superteam.fun/earn/hackathon/world-cup/>
+- On-chain validation: <https://txline.txodds.com/documentation/examples/onchain-validation>
+- Streaming data: <https://txline.txodds.com/documentation/examples/streaming-data>
+- Devnet IDL JSON: <https://github.com/txodds/tx-on-chain/blob/main/examples/devnet/idl/txoracle.json>
+
+Lifecycle outline:
+
+1. Start a guest session, complete Devnet `subscribe`, sign the activation preimage, and set both guest JWT and activated API token.
+2. Define score market terms with `FinalOutcomeMarketTerms`, `TotalGoalsMarketTerms`, `SpreadMarketTerms`, or an explicit `ScoreMarketTerms`.
+3. Pass an application-owned 32-byte terms hash into `CreateIntentPlan` or `CreateTradePlan`. The SDK does not derive this hash because the production preimage is not documented in the public Devnet materials.
+4. Build matching, close, settlement, claim, refund, and audit plans with explicit caller-supplied accounts.
+5. Observe live scores or odds with `Scores().StreamFixture`, `Scores().HistoricalByFixture`, `Odds().StreamFixture`, or the corresponding snapshot/update clients.
+6. Detect settlement with `IsFinalOutcomeRecord` and `ExtractFinalOutcome`.
+7. Fetch V2 score proof payloads with `Scores().StatValidationV2` using `FinalOutcomeStatKeys`.
+8. Build validation and settlement instructions with `NewFinalOutcomeProof`, `ValidateStatV2Plan`, `SettleTradePlan`, `SettleMatchedTradePlan`, or `AuditTradeResultPlan`.
+9. Use `ClaimViaResolutionPlan`, `ClaimBatchLegacyPlan`, or `RefundBatchPlan` only when the application has the required public Devnet accounts and real resolution proof material.
+
+Final-outcome proof assembly:
+
+```go
+ctx := context.Background()
+client, err := txline.NewClient(txline.DevnetConfig())
+if err != nil {
+    return err
+}
+
+// Set a guest JWT and activated API token obtained through the Devnet
+// subscription flow before calling data endpoints.
+client.SetGuestJWT(guestJWT)
+client.SetAPIToken(apiToken)
+
+fixtureID := int64(17952170)
+scores, err := client.Scores().HistoricalByFixture(ctx, fixtureID)
+if err != nil {
+    return err
+}
+
+cfg := txline.DefaultSoccerFinalOutcomeConfig()
+outcome, err := txline.FindFinalOutcome(scores, cfg)
+if err != nil {
+    return err
+}
+
+validation, err := client.Scores().StatValidationV2(
+    ctx,
+    outcome.FixtureID,
+    outcome.Seq,
+    txline.FinalOutcomeStatKeys(outcome.Config),
+)
+if err != nil {
+    return err
+}
+
+proof, err := txline.NewFinalOutcomeProof(outcome, validation)
+if err != nil {
+    return err
+}
+
+validatePlan, err := txline.ValidateStatV2Plan(proof.Payload, proof.Strategy)
+if err != nil {
+    return err
+}
+_ = validatePlan.Instructions
+```
+
+Intent and settlement planning:
+
+```go
+terms, err := txline.FinalOutcomeMarketTerms(
+    fixtureID,
+    txline.MarketSideParticipant1,
+    txline.DefaultSoccerFinalOutcomeConfig(),
+)
+if err != nil {
+    return err
+}
+
+// The coordinating application or backend must define this hash preimage and
+// pass the resulting 32 bytes into Devnet create_intent/create_trade flows.
+var termsHash [32]byte
+
+intentPlan, err := txline.CreateIntentPlan(txline.CreateIntentPlanParams{
+    Accounts:      createIntentAccounts,
+    Terms:         terms,
+    TermsHash:     termsHash,
+    IntentID:      intentID,
+    DepositAmount: depositAmount,
+    ExpirationTS:  expirationTS,
+    ClaimPeriod:   claimPeriod,
+})
+if err != nil {
+    return err
+}
+_ = intentPlan.Instructions
+
+settlePlan, err := txline.SettleMatchedTradePlan(txline.SettleMatchedTradePlanParams{
+    Accounts: settleMatchedTradeAccounts,
+    TradeID:  tradeID,
+    Terms:    terms,
+    Payload:  proof.Payload,
+})
+if err != nil {
+    return err
+}
+_ = settlePlan.Instructions
+```
+
+Limitations:
+
+- Runtime support remains Devnet-only.
+- Trading plans require caller-supplied accounts, signatures, market IDs, token accounts, vaults, and off-chain coordination.
+- Terms hashes are explicit inputs. The SDK preserves them but does not invent a production hash preimage.
+- Settlement helpers require real score records and proof payloads from TxLINE APIs. Default tests stay offline and do not simulate live Devnet transactions.
+
 ## Purchase Quote Safety
 
 ```go
