@@ -17,91 +17,83 @@ Devnet-only multi-language SDK workspace for TxLINE.
 
 ## Overview
 
-`txline` provides SDKs for the current TxLINE Devnet APIs and Solana program
-addresses. The Rust crate remains the reference implementation, and the Go,
-Python, and TypeScript packages mirror the same Devnet-only guardrails,
-credential handling, validation checks, SSE behavior, and purchase quote safety
-model.
+`txline` is a monorepo for TxLINE Devnet SDKs. The packages share one Devnet
+safety model for configuration, credentials, REST and SSE access, validation
+payloads, Solana instruction builders, and paid purchase quote checks.
+
+The Rust crate is the reference implementation for instruction encoding and
+golden fixtures. The Go, Python, and TypeScript packages mirror the same
+Devnet-only boundaries in language-native APIs.
 
 ## SDK Packages
 
-| Package | Published SDK | Path | Audience | Checks |
-| --- | --- | --- | --- | --- |
-| Rust crate | [`txline`](https://crates.io/crates/txline) | [`crates/txline`](crates/txline) | Rust services, CLIs, and validation tooling | `cargo fmt`, `cargo clippy`, `cargo test` |
-| Go module | [`github.com/Berektassuly/txline/go/txline`](https://pkg.go.dev/github.com/Berektassuly/txline/go/txline) | [`go`](go) | Backend services, bots, indexers, and workers | `go test ./...`, `go vet ./...` |
-| Python package | [`txline`](https://pypi.org/project/txline/) | [`python`](python) | Bots, analytics, scripts, and services | `pytest`, `ruff`, `mypy`, `build` |
-| TypeScript package | [`@beriktassuly/txline`](https://www.npmjs.com/package/@beriktassuly/txline) | [`typescript`](typescript) | TypeScript/JavaScript apps and services | `npm run typecheck`, `npm test`, `npm run build` |
+Start with the README for the language you are using:
 
-The SDKs currently include:
+| Package | Published SDK | Local docs | Path | Checks |
+| --- | --- | --- | --- | --- |
+| Rust crate | [`txline`](https://crates.io/crates/txline) | [`crates/txline/README.md`](crates/txline/README.md) | [`crates/txline`](crates/txline) | `cargo fmt`, `cargo clippy`, `cargo test` |
+| Go module | [`github.com/Berektassuly/txline/go/txline`](https://pkg.go.dev/github.com/Berektassuly/txline/go/txline) | [`go/README.md`](go/README.md) | [`go`](go) | `go test ./...`, `go vet ./...` |
+| Python package | [`txline`](https://pypi.org/project/txline/) | [`python/README.md`](python/README.md) | [`python`](python) | `pytest`, `ruff`, `mypy`, `build` |
+| TypeScript package | [`@beriktassuly/txline`](https://www.npmjs.com/package/@beriktassuly/txline) | [`typescript/README.md`](typescript/README.md) | [`typescript`](typescript) | `npm run typecheck`, `npm test`, `npm run build` |
+
+## Shared Capabilities
+
+The SDK packages currently include:
 
 - Devnet configuration and client construction.
-- Guest JWT acquisition and activated API token storage.
+- Guest JWT acquisition and activated API token handling.
 - REST clients for fixtures, odds, scores, validation, and purchase quotes.
 - SSE odds and scores streams with reconnect support, `Last-Event-ID`, and
-  heartbeat filtering. SSE requests require both guest JWT and activated API
-  token, and stream setup refreshes guest JWTs on `401` and `403`.
+  heartbeat filtering.
 - Typed soccer `PlayerStats` support on score records.
 - Legacy and V2 score stat-validation DTOs and conversion helpers.
 - Proof hash decoding from base64, hex, and byte arrays.
 - V2 strategy builders for single, binary, geometric, and distance predicates.
-- Devnet PDA helpers and Token-2022 associated token account derivation and
-  creation.
-- Anchor-compatible `subscribe(service_level_id, weeks)`,
-  `request_devnet_faucet`, `purchase_subscription_token_usdt`, and validation
-  instruction helpers.
-- Low-level non-admin TxODDS trading instruction builders for intents, direct
+- Devnet PDA helpers and Token-2022 associated token account derivation.
+- `subscribe`, `request_devnet_faucet`, `purchase_subscription_token_usdt`,
+  and validation instruction builders.
+- Low-level public TxODDS trading instruction builders for intents, direct
   trades, matching, settlement, claims, refunds, and audit checks.
-- A high-level Devnet setup flow analogous to the upstream TypeScript
-  `setupUser` helper.
 - Pricing matrix account decoding and paid quote transaction safety checks.
 - A machine-readable Devnet IDL instruction coverage manifest.
 
-For paid purchase signing flows, use the checked purchase quote helper in the
-language package you are using. It requires the expected backend signer and
-returns transaction bytes only after SDK safety validation succeeds.
+## Devnet Configuration
 
-## Rust Quick Start
+Use the package-specific Devnet factory:
 
-```rust,no_run
-use txline::{ApiToken, GuestJwt, TxlineClient, TxlineConfig};
+| Language | Devnet factory |
+| --- | --- |
+| Rust | `TxlineConfig::devnet()` |
+| Go | `txline.DevnetConfig()` |
+| Python | `TxlineConfig.devnet()` |
+| TypeScript | `devnetConfig()` |
 
-# async fn run() -> txline::Result<()> {
-let client = TxlineClient::new(TxlineConfig::devnet())?;
+Canonical Devnet values:
 
-let guest = client.start_guest_session().await?;
+| Value | Devnet |
+| --- | --- |
+| API host | `https://txline-dev.txodds.com` |
+| API base | `https://txline-dev.txodds.com/api` |
+| Guest auth URL | `https://txline-dev.txodds.com/auth/guest/start` |
+| Program ID | `6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J` |
+| TxL mint | `4Zao8ocPhmMgq7PdsYWyxvqySMGx7xb9cMftPMkEokRG` |
+| USDT mint | `ELWTKspHKCnCfCiCiqYw1EDH77k8VCP74dK9qytG2Ujh` |
+| Default RPC | `https://api.devnet.solana.com` |
 
-// After a confirmed Devnet subscribe transaction, sign this message with the
-// subscribing wallet and pass the base64 detached signature to activation.
-let message = client.activation_preimage("SUBSCRIBE_TX_SIGNATURE", &[])?;
+Custom RPC URLs are allowed for Devnet providers, but every package keeps the
+TxLINE program ID and mints fixed to Devnet. Config validation rejects empty RPC
+URLs and obvious mainnet-looking RPC overrides. The guard is syntactic; callers
+are still responsible for using a real Devnet RPC endpoint.
 
-client.set_guest_jwt(GuestJwt::new(guest.token.as_str())?);
-client.set_api_token(ApiToken::new("activated-api-token")?);
+## Authentication
 
-let fixtures = client.fixtures().snapshot(None, None).await?;
-println!("fixtures: {}", fixtures.len());
-# Ok(())
-# }
-```
+Data access uses two credentials:
 
-For the full Devnet setup flow:
+- A guest JWT from `/auth/guest/start`.
+- An activated API token from `/api/token/activate` after a confirmed Devnet
+  `subscribe(service_level_id, weeks)` transaction.
 
-```rust,no_run
-use txline::{TxlineClient, TxlineConfig};
-
-# async fn run() -> txline::Result<()> {
-let client = TxlineClient::new(TxlineConfig::devnet())?;
-let setup = client
-    .devnet_user_setup()
-    .service_level_id(1)
-    .weeks(4)
-    .selected_leagues(Vec::<i32>::new());
-let result = setup.run_with_keypair_path("path/to/devnet-wallet.json").await?;
-println!("wallet: {}", result.user_pubkey);
-# Ok(())
-# }
-```
-
-The activation preimage is:
+The shared activation preimage is:
 
 ```text
 ${txSig}:${selectedLeagues.join(",")}:${jwt}
@@ -116,65 +108,23 @@ ${txSig}::${jwt}
 Only sign this compatibility-bound message for the matching TxLINE Devnet host,
 network, and subscription transaction.
 
-## Trading Builders
+## Safety Model
 
-The SDKs expose low-level builders for the public, non-admin TxODDS Devnet
-trading instructions from the pinned PR #3 IDL (`1.5.5`). Callers supply every
+For paid purchase signing flows, use the checked purchase quote helper in the
+language package you are using. It requires the expected backend signer and
+returns transaction bytes only after SDK safety validation succeeds.
+
+The public TxODDS trading builders are low-level by design. Callers supply every
 trading account explicitly, including token program and vault accounts. The SDKs
-do not derive or validate trading PDAs, mints, token programs, or vault
-accounts, manage the prediction-market lifecycle, sign transactions, or send
-transactions for these flows. Caller review, simulation where appropriate, and
-deployed on-chain constraints remain required before sending trading
-transactions.
+do not derive or validate unpublished trading PDAs, manage prediction-market
+lifecycles, sign transactions, or send transactions for these flows.
 
-## Devnet Configuration
+Default tests are offline and do not require live TxLINE Devnet credentials.
+Live examples require caller-provided credentials, wallets, and RPC access. Do
+not commit JWTs, API tokens, private keys, seed phrases, wallet signatures, or
+full auth headers.
 
-The canonical configuration is `TxlineConfig::devnet()`.
-
-| Value | Devnet |
-| --- | --- |
-| API host | `https://txline-dev.txodds.com` |
-| API base | `https://txline-dev.txodds.com/api` |
-| Guest auth URL | `https://txline-dev.txodds.com/auth/guest/start` |
-| Program ID | `6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J` |
-| TxL mint | `4Zao8ocPhmMgq7PdsYWyxvqySMGx7xb9cMftPMkEokRG` |
-| USDT mint | `ELWTKspHKCnCfCiCiqYw1EDH77k8VCP74dK9qytG2Ujh` |
-| Default RPC | `https://api.devnet.solana.com` |
-
-Custom RPC URLs are allowed for Devnet providers:
-
-```rust,no_run
-# use txline::TxlineConfig;
-let cfg = TxlineConfig::devnet()
-    .with_rpc_url("https://custom-rpc.example.com/solana/devnet");
-```
-
-Validation rejects empty RPC URLs and obvious mainnet-looking RPC overrides, but
-callers are still responsible for providing a real Devnet RPC endpoint. The
-guard is syntactic; it does not prove that an opaque custom provider is connected
-to Devnet.
-
-## Examples
-
-Rust examples require caller-provided Devnet credentials or an explicit Devnet
-wallet path. They do not contain real tokens, signatures, seed phrases, or
-private keys. Live on-chain simulations are gated behind environment variables
-and are not run by default tests.
-
-```bash
-cargo run -p txline --example devnet_free_tier
-cargo run -p txline --example devnet_setup_user
-cargo run -p txline --example devnet_scores_stream
-cargo run -p txline --example devnet_validate_stat
-cargo run -p txline --example devnet_validate_stat_v2
-cargo run -p txline --example devnet_subscription_scores_1stat
-cargo run -p txline --example devnet_subscription_scores_v2
-cargo run -p txline --example devnet_subscription_scores_v2a
-cargo run -p txline --example devnet_validate_fixture
-cargo run -p txline --example devnet_validate_odds
-```
-
-Common environment variables:
+Common live-example environment variables:
 
 ```bash
 TXLINE_DEVNET_JWT=...
@@ -206,6 +156,10 @@ snapshot, update endpoint, historical score query, or the scores stream.
   instructions.
 - [Security policy](SECURITY.md): how to report vulnerabilities.
 - [Contributing](CONTRIBUTING.md): local workflow and review expectations.
+
+Language-specific usage and examples live in the package READMEs:
+[`crates/txline`](crates/txline), [`go`](go), [`python`](python), and
+[`typescript`](typescript).
 
 ## Development
 
@@ -251,7 +205,6 @@ npm test
 npm run build
 ```
 
-Normal tests are offline and do not require live TxLINE Devnet credentials.
 Validation instruction tests use checked-in Anchor golden fixtures. Rust, Go,
 Python, and TypeScript package tests do not require Anchor or a local
 `txodds/tx-on-chain` checkout. See

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "txline"
-version = "0.3.5"
+version = "0.4.0"
 description = "Devnet-first Python SDK for TxLINE REST, SSE, validation, and Solana instruction builders."
 readme = "README.md"
 requires-python = ">=3.10"

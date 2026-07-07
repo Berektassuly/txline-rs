@@ -221,7 +221,7 @@ export class TxlineClient {
       this.#refreshPromise = this.fetchImpl(this.config.guestAuthUrl, {
         method: "POST",
         headers: {
-          "User-Agent": `txline-ts/0.3.5`,
+          "User-Agent": `txline-ts/0.4.0`,
         },
       })
         .then(decodeJsonResponse<TokenResponse>)

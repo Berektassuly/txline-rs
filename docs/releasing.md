@@ -125,10 +125,10 @@ Because the module root is the `go/` subdirectory, release tags must use the
 subdirectory prefix:
 
 ```text
-go/v0.3.5
+go/v0.4.0
 ```
 
-The workflow accepts `go_version` as `0.3.5` or `v0.3.5`, runs Go tests and vet,
+The workflow accepts `go_version` as `0.4.0` or `v0.4.0`, runs Go tests and vet,
 then creates and pushes the annotated tag.
 
 ## First Release Sequence

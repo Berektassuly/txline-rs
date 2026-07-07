@@ -11,7 +11,7 @@ Published package docs: <https://pkg.go.dev/github.com/Berektassuly/txline/go/tx
 Add the SDK to a Go module:
 
 ```bash
-go get github.com/Berektassuly/txline/go/txline@v0.3.5
+go get github.com/Berektassuly/txline/go/txline@v0.4.0
 ```
 
 Develop from this repository:
