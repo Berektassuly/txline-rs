@@ -362,7 +362,8 @@ func CreateIntentPlan(params CreateIntentPlanParams) (LifecyclePlan, error) {
 	if err != nil {
 		return LifecyclePlan{}, err
 	}
-	return singleInstructionPlan("create_intent", ix,
+	return singleInstructionPlan(
+		"create_intent", ix,
 		[]string{"Provide the order intent, vault, token mint, token program, treasury, and maker token accounts from the coordinating application."},
 		[]string{"Maker signs and submits the instruction, then waits for a taker intent or an explicit close."},
 	), nil
@@ -398,7 +399,8 @@ func CreateTradePlan(params CreateTradePlanParams) (LifecyclePlan, error) {
 	if err != nil {
 		return LifecyclePlan{}, err
 	}
-	return singleInstructionPlan("create_trade", ix,
+	return singleInstructionPlan(
+		"create_trade", ix,
 		[]string{"Provide both traders, token accounts, escrow accounts, stake mint, token program, and treasury accounts explicitly."},
 		[]string{"Both traders sign the direct trade instruction before score observation and settlement."},
 	), nil
@@ -409,7 +411,8 @@ func ExecuteMatchPlan(accounts ExecuteMatchAccounts, params ExecuteMatchParams) 
 	if err != nil {
 		return LifecyclePlan{}, err
 	}
-	return singleInstructionPlan("execute_match", ix,
+	return singleInstructionPlan(
+		"execute_match", ix,
 		[]string{"Provide maker/taker intents, their vaults, matched-trade account, trade vault, token mint, token program, and solver signer."},
 		[]string{"After matching, observe scores and settle the matched trade with a real validation payload."},
 	), nil
@@ -420,7 +423,8 @@ func CloseIntentPlan(accounts CloseIntentAccounts) (LifecyclePlan, error) {
 	if err != nil {
 		return LifecyclePlan{}, err
 	}
-	return singleInstructionPlan("close_intent", ix,
+	return singleInstructionPlan(
+		"close_intent", ix,
 		[]string{"Provide the intent, vault, maker token account, token mint, token program, treasury, and close authority."},
 		[]string{"Use this path when the intent expires or the application chooses to cancel it before matching."},
 	), nil
@@ -467,7 +471,8 @@ func SettleTradePlan(params SettleTradePlanParams) (LifecyclePlan, error) {
 	if err != nil {
 		return LifecyclePlan{}, err
 	}
-	return singleInstructionPlan("settle_trade", ix,
+	return singleInstructionPlan(
+		"settle_trade", ix,
 		[]string{"Provide the direct trade escrow, escrow vault, winner token account, token mint, token program, treasury, and daily scores root account."},
 		[]string{"Winner signs after the score proof payload has been fetched for the observed final score sequence."},
 	), nil
@@ -510,7 +515,8 @@ func SettleMatchedTradePlan(params SettleMatchedTradePlanParams) (LifecyclePlan,
 	if err != nil {
 		return LifecyclePlan{}, err
 	}
-	return singleInstructionPlan("settle_matched_trade", ix,
+	return singleInstructionPlan(
+		"settle_matched_trade", ix,
 		[]string{"Provide the matched trade, trade vault, winner token account, token mint, token program, treasury, and daily scores root account."},
 		[]string{"Winner signs after matching and proof retrieval; the SDK does not infer the matched trade account."},
 	), nil
@@ -521,7 +527,8 @@ func ClaimViaResolutionPlan(accounts ClaimViaResolutionAccounts, params ClaimVia
 	if err != nil {
 		return LifecyclePlan{}, err
 	}
-	return singleInstructionPlan("claim_via_resolution", ix,
+	return singleInstructionPlan(
+		"claim_via_resolution", ix,
 		[]string{"Provide the daily resolution root, matched trade, trade vault, winner token account, token program, and winner signer."},
 		[]string{"Use only with a real published resolution proof from the coordinating application or backend."},
 	), nil
@@ -532,7 +539,8 @@ func ClaimBatchLegacyPlan(accounts ClaimBatchLegacyAccounts, params ClaimBatchLe
 	if err != nil {
 		return LifecyclePlan{}, err
 	}
-	return singleInstructionPlan("claim_batch_legacy", ix,
+	return singleInstructionPlan(
+		"claim_batch_legacy", ix,
 		[]string{"Provide the daily resolution root, stake mint, token program, system program, and payer signer."},
 		[]string{"Use only when the application has a compatible legacy batch resolution proof."},
 	), nil
@@ -543,7 +551,8 @@ func RefundBatchPlan(accounts RefundBatchAccounts) (LifecyclePlan, error) {
 	if err != nil {
 		return LifecyclePlan{}, err
 	}
-	return singleInstructionPlan("refund_batch", ix,
+	return singleInstructionPlan(
+		"refund_batch", ix,
 		[]string{"Provide the payer, stake mint, token program, and system program explicitly."},
 		[]string{"Use for the public refund path exposed by the Devnet IDL when the application has determined refund eligibility."},
 	), nil
@@ -584,7 +593,8 @@ func AuditTradeResultPlan(params AuditTradeResultPlanParams) (LifecyclePlan, err
 	if err != nil {
 		return LifecyclePlan{}, err
 	}
-	return singleInstructionPlan("audit_trade_result", ix,
+	return singleInstructionPlan(
+		"audit_trade_result", ix,
 		[]string{"Provide the payer signer and daily scores root account for the validation payload timestamp."},
 		[]string{"Use this path to check market terms against a real score proof before or alongside settlement."},
 	), nil
@@ -595,7 +605,8 @@ func ValidateStatV2Plan(payload StatValidationInput, strategy NDimensionalStrate
 	if err != nil {
 		return LifecyclePlan{}, err
 	}
-	return singleInstructionPlan("validate_stat_v2", ix,
+	return singleInstructionPlan(
+		"validate_stat_v2", ix,
 		[]string{"Fetch the proof from /api/scores/stat-validation with the same ordered stat keys used by the strategy."},
 		[]string{"Simulate or include the instruction in a transaction only after reviewing the payload and strategy indexes."},
 	), nil

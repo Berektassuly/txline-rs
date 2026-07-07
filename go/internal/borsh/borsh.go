@@ -62,7 +62,7 @@ func (e *Encoder) I64(value int64) {
 
 func (e *Encoder) String(value string) error {
 	if len(value) > math.MaxUint32 {
-		return fmt.Errorf("Anchor string length exceeds u32")
+		return fmt.Errorf("anchor string length exceeds u32")
 	}
 	e.U32(uint32(len(value)))
 	e.buf = append(e.buf, value...)
@@ -71,7 +71,7 @@ func (e *Encoder) String(value string) error {
 
 func (e *Encoder) Len(length int) error {
 	if length < 0 || length > math.MaxUint32 {
-		return fmt.Errorf("Anchor vector length exceeds u32")
+		return fmt.Errorf("anchor vector length exceeds u32")
 	}
 	e.U32(uint32(length))
 	return nil

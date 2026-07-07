@@ -54,7 +54,9 @@ The only direct non-stdlib dependency is `github.com/gagliardetto/solana-go v1.2
 
 It is used for Solana public keys, PDA/ATA derivation, generic instruction objects, transaction decoding, message inspection, and signature verification. Those areas are brittle and security-sensitive enough that using a mature Solana Go library is lower risk than hand-rolling wire formats.
 
-Run `go mod tidy`, `go test ./...`, `go vet ./...`, and `govulncheck ./...` when available after dependency changes.
+Run `gofumpt`, `go mod tidy`, `go test ./...`, `go test -race ./...`,
+`go vet ./...`, `staticcheck ./...`, and `govulncheck ./...` after dependency
+or behavior changes.
 
 ## Safety Model
 

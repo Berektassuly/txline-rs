@@ -128,8 +128,10 @@ subdirectory prefix:
 go/v0.4.0
 ```
 
-The workflow accepts `go_version` as `0.4.0` or `v0.4.0`, runs Go tests and vet,
-then creates and pushes the annotated tag.
+The workflow accepts `go_version` as `0.4.0` or `v0.4.0`, runs the same Go
+quality gates as CI, creates and pushes the annotated tag, verifies the pushed
+subdirectory module through `GOPROXY=direct`, and then best-effort warms the
+public Go proxy.
 
 ## First Release Sequence
 

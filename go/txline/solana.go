@@ -15,8 +15,10 @@ const (
 	ComputeBudgetProgramIDString   = "ComputeBudget111111111111111111111111111111"
 )
 
-type PublicKey = solana.PublicKey
-type Instruction = solana.Instruction
+type (
+	PublicKey   = solana.PublicKey
+	Instruction = solana.Instruction
+)
 
 func ParsePublicKey(value string) (solana.PublicKey, error) {
 	key, err := solana.PublicKeyFromBase58(value)
@@ -60,16 +62,6 @@ func readonlySigner(pubkey solana.PublicKey) *solana.AccountMeta {
 
 func newInstruction(programID solana.PublicKey, accounts solana.AccountMetaSlice, data []byte) solana.Instruction {
 	return solana.NewInstruction(programID, accounts, data)
-}
-
-func instructionData(ix solana.Instruction) ([]byte, error) {
-	data, err := ix.Data()
-	if err != nil {
-		return nil, err
-	}
-	out := make([]byte, len(data))
-	copy(out, data)
-	return out, nil
 }
 
 func decodeQuoteTransactionBase64(value string) ([]byte, error) {

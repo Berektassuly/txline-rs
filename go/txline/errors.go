@@ -39,10 +39,6 @@ func newError(kind error, msg string) error {
 	return &Error{Kind: kind, Msg: msg}
 }
 
-func wrapError(kind error, msg string, err error) error {
-	return &Error{Kind: kind, Msg: msg, Err: err}
-}
-
 type HTTPStatusError struct {
 	StatusCode int
 	Body       []byte

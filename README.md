@@ -32,7 +32,7 @@ Start with the README for the language you are using:
 | Package | Published SDK | Local docs | Path | Checks |
 | --- | --- | --- | --- | --- |
 | Rust crate | [`txline`](https://crates.io/crates/txline) | [`crates/txline/README.md`](crates/txline/README.md) | [`crates/txline`](crates/txline) | `cargo fmt`, `cargo clippy`, `cargo test` |
-| Go module | [`github.com/Berektassuly/txline/go/txline`](https://pkg.go.dev/github.com/Berektassuly/txline/go/txline) | [`go/README.md`](go/README.md) | [`go`](go) | `go test ./...`, `go vet ./...` |
+| Go module | [`github.com/Berektassuly/txline/go/txline`](https://pkg.go.dev/github.com/Berektassuly/txline/go/txline) | [`go/README.md`](go/README.md) | [`go`](go) | `gofumpt`, `go test`, `go vet`, `staticcheck`, `govulncheck` |
 | Python package | [`txline`](https://pypi.org/project/txline/) | [`python/README.md`](python/README.md) | [`python`](python) | `pytest`, `ruff`, `mypy`, `build` |
 | TypeScript package | [`@beriktassuly/txline`](https://www.npmjs.com/package/@beriktassuly/txline) | [`typescript/README.md`](typescript/README.md) | [`typescript`](typescript) | `npm run typecheck`, `npm test`, `npm run build` |
 
@@ -179,8 +179,13 @@ Go:
 
 ```bash
 cd go
+go run mvdan.cc/gofumpt@v0.10.0 -w .
+go mod tidy
 go test ./...
+go test -race ./...
 go vet ./...
+go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...
+go run golang.org/x/vuln/cmd/govulncheck@v1.5.0 ./...
 ```
 
 Python:

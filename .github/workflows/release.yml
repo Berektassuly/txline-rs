@@ -37,6 +37,10 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  GO_VERSION: "1.26.4"
+  GOFUMPT_VERSION: "v0.10.0"
+  GOVULNCHECK_VERSION: "v1.5.0"
+  STATICCHECK_VERSION: "v0.7.0"
 
 jobs:
   guard:
@@ -57,7 +61,7 @@ jobs:
           RUST_VERSION: ${{ inputs.rust_version }}
           PYTHON_VERSION: ${{ inputs.python_version }}
           NPM_VERSION: ${{ inputs.npm_version }}
-          GO_VERSION: ${{ inputs.go_version }}
+          GO_RELEASE_VERSION: ${{ inputs.go_version }}
         run: |
           set -euo pipefail
 
@@ -71,7 +75,7 @@ jobs:
             exit 1
           fi
 
-          if [[ -z "${RUST_VERSION}${PYTHON_VERSION}${NPM_VERSION}${GO_VERSION}" ]]; then
+          if [[ -z "${RUST_VERSION}${PYTHON_VERSION}${NPM_VERSION}${GO_RELEASE_VERSION}" ]]; then
             echo "Provide at least one package version input." >&2
             exit 1
           fi
@@ -94,7 +98,7 @@ jobs:
             echo "npm=false" >> "${GITHUB_OUTPUT}"
           fi
 
-          if [[ -n "${GO_VERSION}" ]]; then
+          if [[ -n "${GO_RELEASE_VERSION}" ]]; then
             echo "go=true" >> "${GITHUB_OUTPUT}"
           else
             echo "go=false" >> "${GITHUB_OUTPUT}"
@@ -294,16 +298,26 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.26.x"
+          go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: go/go.sum
+
+      - name: Module tidy
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+
+      - name: Format
+        run: |
+          go run mvdan.cc/gofumpt@${GOFUMPT_VERSION} -w .
+          git diff --exit-code -- .
 
       - name: Prepare release tag
         id: tag
         env:
-          GO_VERSION: ${{ inputs.go_version }}
+          REQUESTED_GO_MODULE_VERSION: ${{ inputs.go_version }}
         run: |
           set -euo pipefail
-          version="${GO_VERSION#v}"
+          version="${REQUESTED_GO_MODULE_VERSION#v}"
           if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
             echo "Go version must be a semantic version like 0.1.0 or v0.1.0." >&2
             exit 1
@@ -316,12 +330,22 @@ jobs:
           fi
 
           echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
 
       - name: Test
         run: go test ./...
 
+      - name: Race test
+        run: go test -race ./...
+
       - name: Vet
         run: go vet ./...
+
+      - name: Staticcheck
+        run: go run honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION} ./...
+
+      - name: Vulnerability scan
+        run: go run golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION} ./...
 
       - name: Push Go module tag
         env:
@@ -332,3 +356,32 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "${TAG}" -m "Release ${TAG}"
           git push origin "${TAG}"
+
+      - name: Verify pushed Go module tag
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          set -euo pipefail
+          module="github.com/Berektassuly/txline/go"
+          tmp="$(mktemp -d)"
+          cd "${tmp}"
+          GOPROXY=direct go list -m "${module}@v${VERSION}"
+
+      - name: Warm Go proxy
+        continue-on-error: true
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          set -euo pipefail
+          module="github.com/Berektassuly/txline/go"
+          tmp="$(mktemp -d)"
+          cd "${tmp}"
+
+          for attempt in 1 2 3 4 5 6; do
+            if GOPROXY=https://proxy.golang.org,direct go list -m "${module}@v${VERSION}"; then
+              exit 0
+            fi
+            sleep $((attempt * 10))
+          done
+
+          exit 1

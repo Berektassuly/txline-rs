@@ -86,12 +86,7 @@ func VerifyPurchaseTransactionBytes(transactionBytes []byte, config PurchaseTran
 	if config.ExpectedBackendSigner == nil {
 		return PurchaseTransactionSafetyReport{}, &Error{Kind: ErrSolana, Msg: "safe purchase validation requires an expected backend signer"}
 	}
-	low := LowLevelPurchaseTransactionSafetyConfig{
-		TxlineProgramID:       config.TxlineProgramID,
-		ExpectedBuyer:         config.ExpectedBuyer,
-		ExpectedTxlineAmount:  config.ExpectedTxlineAmount,
-		ExpectedBackendSigner: config.ExpectedBackendSigner,
-	}
+	low := LowLevelPurchaseTransactionSafetyConfig(config)
 	return VerifyPurchaseTransactionLowLevelUncheckedBackendSigner(tx, low)
 }
 
@@ -107,12 +102,7 @@ func VerifyPurchaseTransaction(tx *solana.Transaction, config PurchaseTransactio
 	if config.ExpectedBackendSigner == nil {
 		return PurchaseTransactionSafetyReport{}, &Error{Kind: ErrSolana, Msg: "safe purchase validation requires an expected backend signer"}
 	}
-	low := LowLevelPurchaseTransactionSafetyConfig{
-		TxlineProgramID:       config.TxlineProgramID,
-		ExpectedBuyer:         config.ExpectedBuyer,
-		ExpectedTxlineAmount:  config.ExpectedTxlineAmount,
-		ExpectedBackendSigner: config.ExpectedBackendSigner,
-	}
+	low := LowLevelPurchaseTransactionSafetyConfig(config)
 	return VerifyPurchaseTransactionLowLevelUncheckedBackendSigner(tx, low)
 }
 
